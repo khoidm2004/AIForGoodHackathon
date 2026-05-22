@@ -6,9 +6,8 @@ function App() {
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/" element={<p>Home page content</p>} />
-          <Route path="/about" element={<p>About page content</p>} />
-          <Route path="/contact" element={<p>Contact page content</p>} />
+          <Route path="/" element={<p>Chatbot</p>} />
+          <Route path="/admin" element={<p>Admin page content</p>} />
         </Routes>
       </MainLayout>
     </BrowserRouter>
