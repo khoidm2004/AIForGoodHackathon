@@ -343,11 +343,12 @@ Useful for:
 | Component | Possible Technology |
 |---|---|
 | Server | FastAPI / Flask |
-| Agent Framework | LangChain / CrewAI / AutoGen |
+| Agent Orchestration | LangGraph |
+| Agent Framework | LangChain / LangChain-OpenAI |
 | Embeddings | Sentence Transformers |
 | Vector DB | ChromaDB / Qdrant / FAISS |
 | Similarity Check | Cosine Similarity |
-| LLM Backend | Ollama / OpenAI API |
+| LLM Backend | OpenRouter / OpenAI API |
 | Privacy Layer | Custom Python Pipeline |
 
 ---
