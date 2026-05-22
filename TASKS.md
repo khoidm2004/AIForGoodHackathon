@@ -1,6 +1,6 @@
 # Implementation Tasks
 
-Phạm vi: **Agent 1, 2, 3, 4** (Python) — LangGraph + LangChain + FastAPI + OpenRouter + ChromaDB.  
+Phạm vi: **Agent 1, 2, 3, 4** (Python) — LangGraph + FastAPI + OpenRouter (direct API) + ChromaDB.  
 Tham chiếu: [README.md](README.md)
 
 ## Legend
@@ -21,7 +21,7 @@ Tham chiếu: [README.md](README.md)
 | [config/openrouter_models.yaml](config/openrouter_models.yaml) | `routing_rules.yaml` | Gợi ý model free cho `OPENROUTER_MODEL` |
 | [docs/skills/fastapi.md](docs/skills/fastapi.md) | `agentforge/skills/fastapi.md` | Aider đọc khi làm FastAPI (TASK A7) |
 
-**Không copy:** package `agentforge/`, Discord/Ollama/n8n, `OpenRouterClient` (LangChain dùng ChatOpenAI với OpenRouter base_url).
+**Không copy:** package `agentforge/`, Discord/Ollama/n8n. LLM calls go directly to OpenRouter via the `openai` SDK — no LangChain.
 
 ---
 
@@ -62,8 +62,7 @@ Tham chiếu: [README.md](README.md)
 ```
 Create requirements.txt in the project root with these dependencies (latest stable versions):
    - langgraph
-   - langchain
-   - langchain-openai
+   - openai
    - sentence-transformers
    - chromadb
    - fastapi
@@ -117,13 +116,11 @@ Implement:
     - return cosine similarity as float between 0.0 and 1.0
     - use sklearn.metrics.pairwise.cosine_similarity or numpy dot product
 
-Also implement as a LangChain Tool (langchain.tools.Tool or @tool decorator):
-  similarity_tool: Tool
-    - name="similarity_tool"
-    - description="Compute cosine similarity between two texts"
-    - func wraps compute_similarity, accepts JSON string {"text1": ..., "text2": ...}
+Also expose as a plain callable (no LangChain):
+  def similarity_tool(text1: str, text2: str) -> float:
+      return compute_similarity(text1, text2)
 
-No CrewAI imports — use only langchain, sentence-transformers, numpy, scikit-learn.
+No CrewAI or LangChain imports — use only sentence-transformers, numpy, scikit-learn.
 ```
 
 ---
@@ -136,17 +133,20 @@ No CrewAI imports — use only langchain, sentence-transformers, numpy, scikit-l
 Create agents/__init__.py (empty) and agents/graph.py.
 
 Use LangGraph (StateGraph) to orchestrate the 4-agent pipeline.
-Do NOT use CrewAI. Use langchain_openai.ChatOpenAI with OpenRouter base_url.
+Do NOT use CrewAI or LangChain. Call OpenRouter directly via the openai SDK.
 
-LLM setup:
-  from langchain_openai import ChatOpenAI
+LLM setup (shared helper — put in core/openrouter.py):
+  from openai import OpenAI
   from config import OPENROUTER_API_KEY, OPENROUTER_MODEL
 
-  llm = ChatOpenAI(
-      model=OPENROUTER_MODEL,
+  _client = OpenAI(
       api_key=OPENROUTER_API_KEY,
       base_url="https://openrouter.ai/api/v1",
   )
+
+  def chat(messages: list[dict], model: str = OPENROUTER_MODEL) -> str:
+      resp = _client.chat.completions.create(model=model, messages=messages)
+      return resp.choices[0].message.content
 
 State (TypedDict):
   class PipelineState(TypedDict):
@@ -295,8 +295,7 @@ Append "## 13. Implementation" to README.md with:
 
 ### Tech Stack (Python Agents)
 - LangGraph (StateGraph orchestration — 4-node pipeline)
-- LangChain + LangChain-OpenAI
-- OpenRouter API (via ChatOpenAI base_url)
+- OpenRouter API (direct via `openai` SDK, `base_url=https://openrouter.ai/api/v1`)
 - sentence-transformers (all-MiniLM-L6-v2)
 - ChromaDB
 - FastAPI
@@ -338,7 +337,8 @@ Append "## 13. Implementation" to README.md with:
 
 - [ ] `agents/graph.py`: đủ 4 nodes (preprocess, compress, review, format_retry) trong LangGraph StateGraph?
 - [ ] `agents/pipeline.py`: gọi `run_graph()`, trả `ProcessResult` với đủ fields?
-- [ ] `core/similarity.py`: `compute_similarity()` + `similarity_tool` (LangChain Tool)?
+- [ ] `core/similarity.py`: `compute_similarity()` + `similarity_tool()` (plain callable)?
+- [ ] `core/openrouter.py`: `chat()` helper using `openai` SDK → OpenRouter?
 - [ ] `api/routes.py`: `POST /process`, `GET /health`?
 - [ ] `db/chromadb_client.py`: `store_prompt()` lưu retry_record + metadata?
 - [ ] Server start không lỗi import?
@@ -734,8 +734,8 @@ Agent 3 reviews
 ```
 Create agents/context_pipeline.py implementing the 4-stage context simplification pipeline.
 
-Use LangGraph (StateGraph) for orchestration. Use langchain_openai.ChatOpenAI with OpenRouter base_url.
-No CrewAI imports.
+Use LangGraph (StateGraph) for orchestration. Call OpenRouter directly via core/openrouter.py chat() helper.
+No CrewAI or LangChain imports.
 
 --- Stage 1: preprocess_node (rule-based only, no LLM) ---
 - remove filler sentences (sentences that are only stop words)

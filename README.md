@@ -62,15 +62,17 @@ Server
     ↓
 Agent 1 — Preprocess Agent
     ↓
-Agent 2 — Privacy Compression Agent
+Agent 2 — Privacy-Aware Context Simplifier
     ↓
-Agent 3 — Review Agent
+Agent 3 — Reviewer / Validator Agent
     ├── PASS → Server
     └── FAIL → Agent 2 Retry
                     ↓
                Reprocess
                     ↓
                Review Again
+                    ↓
+               Agent 4 - Retry Memory Formatter
     ↓
 Vector Database
 ```
@@ -182,7 +184,7 @@ Both trimming and summarization.
 
 ---
 
-# Agent 3 — Review Agent
+# Agent 3 — Reviewer / Validator Agent
 
 ## Purpose
 
@@ -234,7 +236,7 @@ FAIL → Return to Agent 2
 If Agent 3 rejects the output:
 
 ```text
-Review Agent
+Reviewer / Validator Agent
     ↓ FAIL
 Privacy Agent Retry
     ├── stronger summarization
@@ -344,7 +346,7 @@ Useful for:
 |---|---|
 | Server | FastAPI / Flask |
 | Agent Orchestration | LangGraph |
-| Agent Framework | LangChain / LangChain-OpenAI |
+| Agent Framework | Direct OpenRouter API (`openai` SDK) |
 | Embeddings | Sentence Transformers |
 | Vector DB | ChromaDB / Qdrant / FAISS |
 | Similarity Check | Cosine Similarity |
@@ -486,9 +488,9 @@ This project can be presented as:
 The full multi-agent pipeline for context simplification and validation:
 
 ```text
-Coder Agent
+Prompt Source / User Prompt
     ↓
-Context Simplifier Agent
+Privacy-Aware Context Simplifier
     ↓
 Reviewer / Validator Agent
     ↓
@@ -803,7 +805,7 @@ Every record stored in the Vector DB carries this metadata envelope:
 | Component | Technology |
 |---|---|
 | Agent Orchestration | LangGraph |
-| Agent Framework | LangChain + LangChain-OpenAI |
+| Agent Framework | Direct OpenRouter API (`openai` SDK) |
 | Semantic Validation | sentence-transformers (all-MiniLM-L6-v2) |
 | Vector Database | ChromaDB |
 | API Server | FastAPI + uvicorn |
