@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx tsc *)",
       "mcp__code-review-graph__detect_changes_tool",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "mcp__code-review-graph__get_review_context_tool"
     ]
   },
   "enableAllProjectMcpServers": true,
