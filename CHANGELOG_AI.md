@@ -1,0 +1,4 @@
+[2026-05-22] - Recreate backend scaffold after accidental deletion
+What changed: Restored all 21+ required backend source files under backend/src/, plus backend/.env, .dockerignore, Dockerfile, package.json, and tsconfig.json. Covers agents (pipeline graph, preprocess/simplify/review nodes, pipeline state), API layer (routes, controllers, middleware, validators, DTOs, SSE), vector layer (Qdrant client and service), services, config, types, app entry points.
+Why: The backend directory was accidentally deleted and needed to be fully recreated to restore the working scaffold.
+Impact: Backend is fully operational again. TypeScript compiles with zero errors. No hardcoded secrets found in src/ — .env contains only placeholder values. All required dependencies (express, @langchain/langgraph, @qdrant/js-client-rest, dotenv, zod) are present in package.json.
