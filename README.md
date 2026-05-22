@@ -1,73 +1,57 @@
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+npm install --legacy-peer-deps \
+  @emotion/react \
+  @emotion/styled \
+  @mui/icons-material \
+  @mui/material \
+  @popperjs/core \
+  @radix-ui/react-accordion \
+  @radix-ui/react-alert-dialog \
+  @radix-ui/react-aspect-ratio \
+  @radix-ui/react-avatar \
+  @radix-ui/react-checkbox \
+  @radix-ui/react-collapsible \
+  @radix-ui/react-context-menu \
+  @radix-ui/react-dialog \
+  @radix-ui/react-dropdown-menu \
+  @radix-ui/react-hover-card \
+  @radix-ui/react-label \
+  @radix-ui/react-menubar \
+  @radix-ui/react-navigation-menu \
+  @radix-ui/react-popover \
+  @radix-ui/react-progress \
+  @radix-ui/react-radio-group \
+  @radix-ui/react-scroll-area \
+  @radix-ui/react-select \
+  @radix-ui/react-separator \
+  @radix-ui/react-slider \
+  @radix-ui/react-slot \
+  @radix-ui/react-switch \
+  @radix-ui/react-tabs \
+  @radix-ui/react-toggle-group \
+  @radix-ui/react-toggle \
+  @radix-ui/react-tooltip \
+  canvas-confetti \
+  class-variance-authority \
+  clsx \
+  cmdk \
+  date-fns \
+  embla-carousel-react \
+  input-otp \
+  lucide-react \
+  motion \
+  next-themes \
+  react-day-picker \
+  react-dnd \
+  react-dnd-html5-backend \
+  react-hook-form \
+  react-popper \
+  react-resizable-panels \
+  react-responsive-masonry \
+  react-slick \
+  recharts \
+  sonner \
+  tailwind-merge \
+  tw-animate-css \
+  vaul
 ```
