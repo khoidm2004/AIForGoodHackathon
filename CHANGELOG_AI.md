@@ -1,3 +1,8 @@
+[2026-05-23] - Remove unused Qdrant vector layer
+What changed: Deleted backend/src/vector/qdrant.client.ts and qdrant.service.ts. Removed QDRANT_URL and QDRANT_API_KEY from config env schema. Removed @qdrant/js-client-rest from package.json and refreshed package-lock.json.
+Why: Vector search was not used by the pipeline or API; dropping it simplifies config and dependencies.
+Impact: Backend no longer requires Qdrant env vars. Remove QDRANT_URL and QDRANT_API_KEY from backend/.env if present.
+
 [2026-05-23] - Add retry loop to pipeline with 3-attempt cap
 What changed: Added retryCount field to PipelineAnnotation in pipeline.state.ts using a summing reducer ((a, b) => a + b) with default 0. Added increment-retry.node.ts exporting incrementRetryNode, which returns { retryCount: 1 } to accumulate via the reducer. Updated pipeline.graph.ts to register the increment-retry node, replace the old 2-way conditional from review with a 3-way conditional (reviewPassed → output, !reviewPassed && retryCount < 3 → increment-retry, !reviewPassed && retryCount >= 3 → __end__), and add the edge increment-retry → simplify.
 Why: Review failure previously terminated the pipeline unconditionally. The retry loop re-runs simplify→review up to 3 times before giving up, giving transient failures a chance to resolve.
