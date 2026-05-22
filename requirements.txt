@@ -1,0 +1,11 @@
+langgraph
+langchain
+langchain-openai
+sentence-transformers
+chromadb
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+numpy
+scikit-learn
