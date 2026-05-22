@@ -1,6 +1,5 @@
 export interface PipelineInput {
   message: string;
-  userId: string;
   simplify?: boolean;
 }
 
@@ -15,7 +14,6 @@ export interface PipelineStateData {
   simplifiedMessage: string;
   reviewPassed: boolean;
   finalOutput: string;
-  userId: string;
   shouldSimplify: boolean;
 }
 
