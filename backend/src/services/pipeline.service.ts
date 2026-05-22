@@ -8,6 +8,6 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
   });
   return {
     result: result.finalOutput,
-    steps: ['preprocess', 'simplify', 'review'],
+    steps: ['preprocess', 'simplify', 'review', 'output'],
   };
 }
