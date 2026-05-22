@@ -1,0 +1,12 @@
+.aider*
+.env
+.env.local
+.env.*.local
+
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+chroma_db/
+start_aider.bat

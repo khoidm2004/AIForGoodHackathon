@@ -1,0 +1,7 @@
+# Free / low-cost OpenRouter models (from agentforge routing_rules.yaml)
+# Use OPENROUTER_MODEL in .env — pick one id below (no openrouter/ prefix in .env).
+
+code:
+  - openrouter/qwen/qwen3-8b
+
+# Aider CLI uses full litellm name, e.g. openrouter/qwen/qwen3-8b (see start_aider.bat)

@@ -1,6 +1,7 @@
 # Implementation Tasks
 
-Phạm vi: **Agent 1, 2, 3, 4** (Python) — LangGraph + FastAPI + OpenRouter (direct API) + ChromaDB.  
+Phạm vi: **Agent 2, 3, 4** (Python) — LangGraph + FastAPI + OpenRouter (direct API) + ChromaDB.  
+Ghi chú: **Agent 1 đã được teammate hoàn thành**.  
 Tham chiếu: [README.md](README.md)
 
 ## Legend
@@ -52,6 +53,18 @@ Tham chiếu: [README.md](README.md)
 
 > Dùng **`start_aider.bat`** hoặc lệnh aider ở PHASE 1.  
 > Copy **từng prompt** dưới đây vào chat aider. Xong một task → review → task tiếp theo.
+
+---
+
+### Agent 2 First (recommended now)
+
+Vì Agent 1 đã xong, hãy làm theo thứ tự tối ưu sau:
+
+1. TASK A2 (`config.py`)
+2. TASK A2.5 (`core/openrouter.py` + `agents/context_simplifier.py`)  ← Agent 2 core
+3. TASK A3 (`core/similarity.py`)
+4. TASK A4 (`agents/graph.py`) để nối Agent 2 với retry flow
+5. TASK A5 → A7
 
 ---
 
@@ -121,6 +134,52 @@ Also expose as a plain callable (no LangChain):
       return compute_similarity(text1, text2)
 
 No CrewAI or LangChain imports — use only sentence-transformers, numpy, scikit-learn.
+```
+
+---
+
+### TASK A2.5 — Build Agent 2 first (`core/openrouter.py`, `agents/context_simplifier.py`)
+
+**[AIDER]** Copy prompt:
+
+```
+Create core/openrouter.py and agents/context_simplifier.py (plus agents/__init__.py and core/__init__.py if missing).
+
+Requirements:
+- Do NOT use CrewAI or LangChain.
+- Use direct OpenRouter calls via openai SDK.
+- Keep Agent 2 as a three-phase pipeline:
+  1) rule-based prefilter
+  2) LLM rewrite/compression
+  3) post-check
+
+core/openrouter.py:
+- Create singleton OpenAI client with:
+    base_url="https://openrouter.ai/api/v1"
+    api_key=OPENROUTER_API_KEY
+- Expose:
+    chat(messages: list[dict[str, str]], model: str = OPENROUTER_MODEL) -> str
+
+agents/context_simplifier.py:
+- Implement:
+    simplify_context(raw_context: str, compression_level: str = "medium", min_precheck_threshold: float = 0.5)
+- Phase 1 prefilter:
+    - remove filler/redundant tokens
+    - remove emoji/non-ascii noise
+    - remove repeated words
+    - detect and mask PII: PERSON, AGE, LOCATION, COMPANY, EMAIL, PHONE
+- Phase 2 rewrite:
+    - call core.openrouter.chat(...)
+    - enforce JSON output schema:
+      {task, summary, important_symbols, active_files, errors, constraints, open_questions}
+- Phase 3 post-check:
+    - parse JSON safely (strip ```json fences if needed)
+    - check PII still remains or not
+    - compute semantic similarity (using compute_similarity when available)
+    - set needs_retry=True if similarity too low or PII remains
+
+Return object should include at least:
+  preprocessed, compressed, pii_tags, precheck_similarity, post_check_passed, needs_retry
 ```
 
 ---
@@ -337,6 +396,7 @@ Append "## 13. Implementation" to README.md with:
 
 - [ ] `agents/graph.py`: đủ 4 nodes (preprocess, compress, review, format_retry) trong LangGraph StateGraph?
 - [ ] `agents/pipeline.py`: gọi `run_graph()`, trả `ProcessResult` với đủ fields?
+- [ ] `agents/context_simplifier.py`: có đủ 3 phase (prefilter → rewrite → post-check) và `needs_retry`?
 - [ ] `core/similarity.py`: `compute_similarity()` + `similarity_tool()` (plain callable)?
 - [ ] `core/openrouter.py`: `chat()` helper using `openai` SDK → OpenRouter?
 - [ ] `api/routes.py`: `POST /process`, `GET /health`?

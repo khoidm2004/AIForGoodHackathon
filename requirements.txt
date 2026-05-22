@@ -1,6 +1,6 @@
-langgraph
-openai
-sentence-transformers
+langgraph >= 1.2.1
+openai >= 2.38.0
+sentence-transformers >= 5.5.1
 chromadb
 fastapi
 uvicorn[standard]

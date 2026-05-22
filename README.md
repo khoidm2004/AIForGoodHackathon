@@ -503,6 +503,17 @@ This pipeline sits between the active coding/review workflow and long-term vecto
 
 ---
 
+## Current Build Focus
+
+- Agent 1 (rule-based preprocessing) is already completed by a teammate.
+- Current implementation priority is Agent 2 first, then integration with Agent 3 and Agent 4.
+- Agent 2 implementation files:
+  - `agents/context_simplifier.py`
+  - `core/openrouter.py`
+  - `core/similarity.py`
+
+---
+
 ## Why Retry-Aware Simplification Exists
 
 Long-running AI coding workflows suffer from:
