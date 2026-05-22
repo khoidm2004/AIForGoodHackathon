@@ -2,6 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
+// Sidebar imports
+import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
+import { AppSidebar } from "../components/ui/sidebar-prompt";
+
 interface Message {
   id: string;
   content: string;
@@ -24,7 +28,7 @@ export default function Chatbot() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Tự động điều chỉnh chiều cao textarea theo nội dung
+  // Auto‑resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -104,148 +108,154 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card">
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Sparkles className="size-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">AI Assistant</h1>
-            <p className="text-sm text-muted-foreground">Always here to help</p>
-          </div>
-        </div>
-      </header>
+    <SidebarProvider>
+      <div className="flex h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
+                <Sparkles className="size-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold">AI Assistant</h1>
+                <p className="text-sm text-muted-foreground">Always here to help</p>
+              </div>
+            </div>
+            <SidebarTrigger />
+          </header>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="size-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-600/10 flex items-center justify-center mb-6">
-              <Sparkles className="size-10 text-primary" />
-            </div>
-            <h2 className="text-2xl font-semibold mb-3">How can I help you today?</h2>
-            <p className="text-muted-foreground max-w-md">
-              Ask me anything, and I'll do my best to provide helpful and accurate information.
-            </p>
-            <div className="grid grid-cols-2 gap-3 mt-8 max-w-2xl">
-              {[
-                "Explain quantum computing",
-                "Tips for productivity",
-                "Recipe for pasta carbonara",
-                "Learn a new language",
-              ].map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setInput(suggestion)}
-                  className="px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm text-left group"
-                >
-                  <span className="text-foreground group-hover:text-accent-foreground">
-                    {suggestion}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6 mx-auto">
-            <AnimatePresence initial={false}>
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`flex gap-4 ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  {message.role === "assistant" && (
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                <div className="size-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-600/10 flex items-center justify-center mb-6">
+                  <Sparkles className="size-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold mb-3">How can I help you today?</h2>
+                <p className="text-muted-foreground max-w-md">
+                  Ask me anything, and I'll do my best to provide helpful and accurate information.
+                </p>
+                <div className="grid grid-cols-2 gap-3 mt-8 max-w-2xl">
+                  {[
+                    "Explain quantum computing",
+                    "Tips for productivity",
+                    "Recipe for pasta carbonara",
+                    "Learn a new language",
+                  ].map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setInput(suggestion)}
+                      className="px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm text-left group"
+                    >
+                      <span className="text-foreground group-hover:text-accent-foreground">
+                        {suggestion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 mx-auto">
+                <AnimatePresence initial={false}>
+                  {messages.map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={`flex gap-4 ${
+                        message.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      {message.role === "assistant" && (
+                        <div className="size-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/20">
+                          <Sparkles className="size-4 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div
+                        className={`px-5 py-3 rounded-2xl max-w-[80%] ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-card border border-border rounded-bl-sm"
+                        }`}
+                      >
+                        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                          {message.content}
+                        </p>
+                      </div>
+                      {message.role === "user" && (
+                        <div className="size-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 text-sm font-medium">
+                          You
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {isTyping && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex gap-4 justify-start"
+                  >
                     <div className="size-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/20">
                       <Sparkles className="size-4 text-primary-foreground" />
                     </div>
-                  )}
-                  <div
-                    className={`px-5 py-3 rounded-2xl max-w-[80%] ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "bg-card border border-border rounded-bl-sm"
-                    }`}
-                  >
-                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
-                      {message.content}
-                    </p>
-                  </div>
-                  {message.role === "user" && (
-                    <div className="size-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 text-sm font-medium">
-                      You
+                    <div className="px-5 py-3 rounded-2xl rounded-bl-sm bg-card border border-border">
+                      <div className="flex gap-1.5">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="size-2 rounded-full bg-muted-foreground/40"
+                            animate={{
+                              scale: [1, 1.3, 1],
+                              opacity: [0.4, 1, 0.4],
+                            }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: i * 0.15,
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {isTyping && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex gap-4 justify-start"
-              >
-                <div className="size-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary/20">
-                  <Sparkles className="size-4 text-primary-foreground" />
-                </div>
-                <div className="px-5 py-3 rounded-2xl rounded-bl-sm bg-card border border-border">
-                  <div className="flex gap-1.5">
-                    {[0, 1, 2].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="size-2 rounded-full bg-muted-foreground/40"
-                        animate={{
-                          scale: [1, 1.3, 1],
-                          opacity: [0.4, 1, 0.4],
-                        }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          delay: i * 0.15,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
+                  </motion.div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
-        )}
-      </div>
 
-      <div className="px-8 py-6 border-t border-border bg-card">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-          <div className="relative flex items-end gap-3 bg-input-background border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20 transition-shadow">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              rows={1}
-              className="flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground max-h-[200px] min-h-[24px]"
-              disabled={isTyping}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isTyping}
-              className="size-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-primary/20"
-            >
-              <Send className="size-5" />
-            </button>
+          <div className="px-8 py-6 border-t border-border bg-card">
+            <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
+              <div className="relative flex items-center gap-3 bg-input-background border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20 transition-shadow">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your message..."
+                  rows={1}
+                  className="flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground max-h-[200px] min-h-[24px]"
+                  disabled={isTyping}
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isTyping}
+                  className="size-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-primary/20"
+                >
+                  <Send className="size-5" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Press Enter to send, Shift + Enter for new line
+              </p>
+            </form>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-3">
-            Press Enter to send, Shift + Enter for new line
-          </p>
-        </form>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
