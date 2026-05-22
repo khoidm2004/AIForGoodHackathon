@@ -8,7 +8,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   QDRANT_URL: z.string().url(),
   QDRANT_API_KEY: z.string(),
-  ANTHROPIC_API_KEY: z.string(),
+  GROQ_API_KEY: z.string(),
   LOG_LEVEL: z.string().default('info'),
 });
 
