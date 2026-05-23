@@ -40,8 +40,8 @@ The app mimics a ChatGPT-style experience with configurable privacy levels (low 
 1. **Client** — The user sends a prompt and chooses a privacy level (**low** / **medium** / **high**), which sets how aggressively the pipeline compresses and redacts input.
 2. **Server** — The frontend calls the API (e.g. `POST /api/pipeline/run`) with the raw message and `simplify` level; the server starts the graph with `originalMessage` and `compressionLevel`.
 3. **Preprocess agent** — Fixes typos and grammar so later steps work on clean text (`preprocessedMessage`).
-4. **Simplify agent** — Masks PII, drops low-salience noise (rule-based + algorithmic compression), then rewrites the core question with an LLM (`simplifiedMessage`).
-5. **Review agent** — Checks that the simplified prompt still matches the user’s intent (quick rules + optional LLM review). If it fails and retries remain, the pipeline loops back to **Simplify** with slightly looser thresholds (up to three attempts).
+4. **Simplify agent** — Masks PII (English & Vietnamese support), applied SVT -> Top-k -> NoisyKNN algorithms chain at different passing score. (`simplifiedMessage`).
+5. **Review agent** — Checks that the simplified prompt still matches the user’s intent (quick rules + optional LLM review). If it fails and retries remain, the pipeline loops back to **Simplify agent** rewrites the core question (up to three attempts).
 6. **Output finalizing agent** — When review passes (or max retries are reached), builds the client payload: approved **simplified question**, **final answer** (LLM), and review metadata (`status`, similarity, missing items, retry history).
 7. **Client** — The server returns **simplified prompt** and **final answer** so the user sees what was sent to the model and the reply—without exposing the full raw pipeline on every screen.
 
