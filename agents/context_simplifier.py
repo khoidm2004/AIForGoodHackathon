@@ -432,11 +432,13 @@ def _llm_compress(
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
-    """Extract JSON from LLM output, handling markdown fences."""
+    """Extract JSON from LLM output, handling markdown fences and thinking tags."""
     body = text.strip()
-    if body.startswith("```"):
+    body = re.sub(r"<think>.*?</think>", "", body, flags=re.DOTALL).strip()
+    if "```" in body:
         body = re.sub(r"^```(?:json)?\s*", "", body)
         body = re.sub(r"\s*```$", "", body)
+        body = body.strip()
     
     start = body.find("{")
     end = body.rfind("}")
