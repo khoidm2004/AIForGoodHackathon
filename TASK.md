@@ -1,4 +1,4 @@
-# Task: Integrate Streaming Feature from LLM Response
+# Task: Integrate an Output Agent to Present the Final Answer and Simplified Context
 
 ## IMPORTANT
 
@@ -8,25 +8,27 @@
 
 ## Background
 
-The app has 4 agents. Currently the LLM response is buffered and returned all at once,
-causing the client to wait for the full response before rendering anything.
-Streaming will allow the client to receive and display chunks as they arrive.
+The pipeline currently runs a simplification step followed by a review agent. This task adds a final **Output Agent** that activates when the simplified text passes the review agent. It is responsible for:
+
+1. Presenting the answer to the user based on their original input
+2. Displaying the final simplified context after the simplification step
 
 ## Success Criteria
 
-- Client receives and renders LLM response chunks in real-time
-- Time to first token (TTFT) is visibly reduced
-- No existing features or components are broken
+- The output agent runs without errors after the review agent approves the simplified text
+- The agent correctly receives and displays the user's original input alongside the final simplified context
+- The response structure matches what the rest of the pipeline expects (same shape as before)
+- No regressions in existing features — other agents/components behave as before
 
 ## How to Test
 
-- Send a long text input to the `/api/process` endpoint
-- Verify the response streams in chunks instead of arriving all at once
-- Check the UI updates incrementally as chunks arrive
-- Confirm all 4 agents still work as expected
+1. Trigger the full pipeline with a sample user input
+2. Confirm the review agent approves the simplified text and passes control to the output agent
+3. Verify the output agent displays both the user's answer and the final simplified context correctly
+4. Run any existing tests — none should break
 
 ## Notes for Agents
 
-- **Planner:** Read the existing codebase and identify which agent or route handles the LLM call. Map out where streaming needs to be wired in and confirm the plan before Coder starts.
-- **Coder:** Only add streaming to the LLM response layer and update the client to consume `text/event-stream` — do not touch other functions or files.
+- **Planner:** Read the existing codebase and analyze the task above before starting. Map out where the output agent fits in the pipeline and confirm the plan before Coder starts.
+- **Coder:** Only add the new output agent and wire it into the post-review step — do not touch other functions or files.
 - **Reviewer:** Log what was changed, verify the success criteria above are met, and perform a code review.

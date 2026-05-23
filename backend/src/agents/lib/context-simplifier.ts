@@ -2,7 +2,7 @@
  * Agent 2: privacy-aware context simplification (ported from Hackathon/agents/context_simplifier.py).
  */
 
-import { chat, chatStream } from "./llm-chat";
+import { chat } from "./llm-chat";
 import {
   AGE_RE,
   AGE_VI_RE,
@@ -345,7 +345,6 @@ function extractJsonObject(text: string): Record<string, unknown> {
 async function llmSimplifyQuestion(
   text: string,
   level: CompressionLevel,
-  onChunk?: (chunk: string) => void,
 ): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
   let strategy: { scope: string; examples: string };
 
@@ -407,13 +406,10 @@ async function llmSimplifyQuestion(
     '{"simplified_question": "the clear concise question", ' +
     '"important_symbols": ["terms you preserved"], "active_files": [], "errors": [], "constraints": []}';
 
-  const llmMessages: Array<{ role: "system" | "user"; content: string }> = [
+  const llmOutput = await chat([
     { role: "system", content: systemPrompt },
     { role: "user", content: text },
-  ];
-  const llmOutput = onChunk
-    ? await chatStream(llmMessages, onChunk)
-    : await chat(llmMessages);
+  ]);
 
   try {
     const result = extractJsonObject(llmOutput);
@@ -429,7 +425,6 @@ export async function simplifyContext(
   compressionLevel: CompressionLevel = "medium",
   minPrecheckThreshold = 0.5,
   taskContext = "",
-  onChunk?: (chunk: string) => void,
 ): Promise<Agent2Result> {
   const { text: preprocessed, piiTags } = prefilter(rawContext);
 
@@ -445,7 +440,6 @@ export async function simplifyContext(
   const { sanitized: llmSimplified, structured: llmResult } = await llmSimplifyQuestion(
     preprocessed,
     compressionLevel,
-    onChunk,
   );
   const finalSanitized = llmSimplified || sanitizedAlgo;
 

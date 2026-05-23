@@ -8,10 +8,6 @@ export const PipelineAnnotation = Annotation.Root({
   finalOutput: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
   compressionLevel: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
   retryCount: Annotation<number>({ reducer: (a, b) => a + b, default: () => 0 }),
-  onChunk: Annotation<((chunk: string) => void) | undefined>({
-    reducer: (_, b) => b,
-    default: () => undefined,
-  }),
 });
 
 export type PipelineState = typeof PipelineAnnotation.State;
