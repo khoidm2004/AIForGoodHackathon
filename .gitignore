@@ -3,3 +3,5 @@ node_modules
 # Added by code-review-graph
 .code-review-graph/
 dist/
+
+src/test-pipeline.ts
