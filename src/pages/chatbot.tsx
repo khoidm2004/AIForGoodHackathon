@@ -13,7 +13,7 @@ export interface Message {
   role: "user" | "assistant";
   timestamp: Date;
   simplify?: "low" | "medium" | "high";
-  simplifiedMessage?: string | null;   // thêm trường này
+  simplifiedMessage?: string | null;  
 }
 
 function MobileOpenButton() {
@@ -107,7 +107,7 @@ export default function Chatbot() {
           content: "",
           role: "assistant",
           timestamp: new Date(),
-          simplifiedMessage: data.result.simplifiedMessage ?? null,   // lưu trực tiếp vào message
+          simplifiedMessage: data.result.simplifiedMessage ?? null,  
         };
         setMessages((prev) => [...prev, assistantMessage]);
         await simulateTyping(assistantAnswer);

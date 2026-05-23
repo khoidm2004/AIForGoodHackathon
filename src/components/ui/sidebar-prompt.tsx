@@ -59,7 +59,7 @@ export function AppSidebar({ messages }: AppSidebarProps) {
           <SidebarGroupLabel>Simplify History</SidebarGroupLabel>
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto px-3 py-4 max-h-[calc(100vh-120px)]"
+            className="flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overflow-y-auto px-3 py-4 max-h-[calc(100vh-120px)]"
           >
             {simplifiedMessages.length === 0 ? (
               <div className="text-center text-muted-foreground text-sm py-8">
