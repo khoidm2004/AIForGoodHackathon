@@ -40,6 +40,9 @@ export default function Chatbot() {
     }
   }, [input]);
 
+  // TODO: Hàm simulateTyping này hiện đang mô phỏng hiệu ứng gõ chữ.
+  // Có thể thay thế bằng việc nhận stream dữ liệu từ API (ví dụ: Server-Sent Events, WebSocket hoặc fetch + ReadableStream)
+  // và cập nhật từng phần nội dung vào messages cũng như gọi addAIResponse cho sidebar.
   const simulateTyping = (text: string): Promise<void> => {
     return new Promise((resolve) => {
       const words = text.split(" ");
@@ -58,58 +61,64 @@ export default function Chatbot() {
             return newMessages;
           });
           
-          // This adds/updates the current AI response in the sidebar
+          // Gọi addAIResponse để cập nhật nội dung vào sidebar.
+          // Nếu dùng API riêng cho sidebar, có thể gọi một hàm khác hoặc truyền dữ liệu từ API đó.
           addAIResponse(currentText);
 
           wordIndex++;
         } else {
           clearInterval(intervalId);
-          // Mark the AI response as complete
-          finishAIResponse();
+          finishAIResponse(); // Đánh dấu kết thúc phản hồi cho sidebar
           resolve();
         }
       }, 50);
     });
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!input.trim() || isTyping) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isTyping) return;
 
-  const userMessage: Message = {
-    id: Date.now().toString(),
-    content: input.trim(),
-    role: "user",
-    timestamp: new Date(),
-    privacyMode: privacyMode,
-  };
-
-  setMessages((prev) => [...prev, userMessage]);
-  setInput("");
-  setIsTyping(true);
-
-  setTimeout(async () => {
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: "",
-      role: "assistant",
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: input.trim(),
+      role: "user",
       timestamp: new Date(),
+      privacyMode: privacyMode,
     };
 
-    setMessages((prev) => [...prev, assistantMessage]);
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsTyping(true);
 
-    const responses = [
-      "That's a great question! Let me help you with that. Based on what you've shared, I'd recommend exploring a few different approaches to find what works best for your specific situation.",
-      "I understand what you're asking. This is definitely something worth exploring in more detail. Let me break this down into a few key points that might be helpful for you.",
-      "Thanks for sharing that with me. I can see why you'd be curious about this. Here's what I know that might be relevant to your question.",
-      "Interesting! This touches on a few different aspects. Let me provide some insights that could help guide you in the right direction.",
-    ];
+    // TODO: Thay thế đoạn setTimeout và mock response bằng API call thực tế.
+    // Gửi userMessage.content và privacyMode lên endpoint chat API (ví dụ: POST /api/chat)
+    // Sau đó nhận phản hồi (có thể là stream) và cập nhật tin nhắn assistant tương ứng.
+    // Nếu API trả về toàn bộ nội dung, có thể bỏ simulateTyping và set trực tiếp.
+    // Nếu API hỗ trợ stream, gọi addAIResponse từng phần để sidebar cập nhật.
+    setTimeout(async () => {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "",
+        role: "assistant",
+        timestamp: new Date(),
+      };
 
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    await simulateTyping(randomResponse);
-    setIsTyping(false);
-  }, 800);
-};
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Mock responses – thay bằng dữ liệu thật từ API
+      const responses = [
+        "That's a great question! Let me help you with that. Based on what you've shared, I'd recommend exploring a few different approaches to find what works best for your specific situation.",
+        "I understand what you're asking. This is definitely something worth exploring in more detail. Let me break this down into a few key points that might be helpful for you.",
+        "Thanks for sharing that with me. I can see why you'd be curious about this. Here's what I know that might be relevant to your question.",
+        "Interesting! This touches on a few different aspects. Let me provide some insights that could help guide you in the right direction.",
+      ];
+
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      await simulateTyping(randomResponse); // Thay thế bằng xử lý stream từ API
+      setIsTyping(false);
+    }, 800);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -123,9 +132,9 @@ const handleSubmit = async (e: React.FormEvent) => {
       <div className="flex h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
+          {/* ... phần header và chat UI giữ nguyên ... */}
           <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
-              
               <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
                 <Sparkles className="size-5 text-primary-foreground" />
               </div>
@@ -151,6 +160,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </header>
 
           <div className="flex-1 overflow-y-auto px-8 py-6">
+            {/* ... phần hiển thị messages và suggestions giữ nguyên ... */}
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-4">
                 <div className="size-20 rounded-full bg-gradient-to-br from-primary/10 to-blue-600/10 flex items-center justify-center mb-6">

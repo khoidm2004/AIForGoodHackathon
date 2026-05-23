@@ -1,6 +1,6 @@
+// sidebar-prompt.tsx
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-// Remove unused User import
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,12 @@ interface AIResponse {
   timestamp: Date;
 }
 
+// TODO: Các biến toàn cục và hàm addAIResponse/finishAIResponse hiện đang dùng để mô phỏng
+// phản hồi từ main chat. Nếu muốn sidebar nhận dữ liệu từ một API riêng (khác với API chat chính),
+// cần thay thế cơ chế này:
+// - Gọi API riêng (ví dụ: GET /api/sidebar-responses hoặc WebSocket) để lấy lịch sử và các phản hồi mới.
+// - Khi có dữ liệu mới từ API đó, gọi một hàm tương tự addAIResponse nhưng lấy dữ liệu thật.
+// - Hook useSidebarAI có thể được sửa để fetch initial data từ API và subscribe vào các sự kiện realtime.
 let responsesHistory: AIResponse[] = [];
 let listeners: ((responses: AIResponse[]) => void)[] = [];
 let currentTypingId: string | null = null;
@@ -22,7 +28,6 @@ let currentTypingId: string | null = null;
 export const addAIResponse = (content: string) => {
   if (content.length === 0) return;
   
-  // If we're currently typing a response, update it
   if (currentTypingId) {
     responsesHistory = responsesHistory.map(response => 
       response.id === currentTypingId 
@@ -30,7 +35,6 @@ export const addAIResponse = (content: string) => {
         : response
     );
   } else {
-    // Start a new response
     const newId = Date.now().toString();
     currentTypingId = newId;
     responsesHistory = [
@@ -47,9 +51,7 @@ export const addAIResponse = (content: string) => {
 };
 
 export const finishAIResponse = () => {
-  // Mark the current typing response as complete
   if (currentTypingId) {
-    // Ensure the final content is saved with a fresh timestamp
     responsesHistory = responsesHistory.map(response => 
       response.id === currentTypingId 
         ? { ...response, timestamp: new Date() }
@@ -65,6 +67,9 @@ export const useSidebarAI = () => {
   
   useEffect(() => {
     listeners.push(setResponses);
+    // TODO: Nếu dùng API riêng, có thể gọi fetch ở đây để tải lịch sử ban đầu,
+    // và thiết lập kết nối (SSE, WebSocket) để nhận phản hồi mới từ API đó.
+    // Khi nhận được mỗi chunk hoặc mỗi phản hồi hoàn chỉnh, gọi addAIResponse tương ứng.
     return () => {
       listeners = listeners.filter(l => l !== setResponses);
     };
@@ -94,7 +99,7 @@ export function AppSidebar() {
             ) : (
               <div className="space-y-4">
                 <AnimatePresence initial={false}>
-                  {responses.map((response) => (  // Remove unused 'idx' parameter
+                  {responses.map((response) => (
                     <motion.div
                       key={response.id}
                       initial={{ opacity: 0, y: 10 }}
