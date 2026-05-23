@@ -9,7 +9,11 @@ export async function reviewNode(state: PipelineState): Promise<Partial<Pipeline
 
   const minSimilarity = getSimilarityThreshold(state.compressionLevel, state.retryCount);
 
-  const review = await reviewAgent3(state.originalMessage, agent2Output, { useLlm: true, minSimilarity });
+  const review = await reviewAgent3(state.originalMessage, agent2Output, {
+    useLlm: true,
+    minSimilarity,
+    compressionLevel: state.compressionLevel,
+  });
 
   const attemptNumber = getCurrentAttempt();
   addAttemptToHistory(attemptNumber, state.simplifiedMessage, review);
