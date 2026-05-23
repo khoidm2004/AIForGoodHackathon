@@ -45,22 +45,22 @@ FILLERS = {
 # Level-specific thresholds
 LEVEL_CONFIG = {
     "low": {
-        "svt_threshold": 0.25,      # SVT: keep clauses with score >= 0.25
-        "top_k_ratio": 0.85,       # Top-k: keep 85% of clauses
-        "dedup_threshold": 0.92,   # Noisy KNN: merge if similarity > 0.92
-        "use_llm": False,          # Don't use LLM, rule-based only
+        "svt_threshold": 0.16,      # SVT(0.16) — giữ nhiều câu hơn
+        "top_k_ratio": 0.92,        # Top-k(92%)
+        "dedup_threshold": 0.97,    # NoisyKNN(0.97) — chỉ gộp khi gần trùng hẳn
+        "use_llm": False,
     },
     "medium": {
-        "svt_threshold": 0.50,
-        "top_k_ratio": 0.65,
-        "dedup_threshold": 0.88,
+        "svt_threshold": 0.38,      # SVT(0.38)
+        "top_k_ratio": 0.68,        # Top-k(68%)
+        "dedup_threshold": 0.86,    # NoisyKNN(0.86)
         "use_llm": False,
     },
     "high": {
-        "svt_threshold": 0.70,
-        "top_k_ratio": 0.35,
-        "dedup_threshold": 0.85,
-        "use_llm": True,           # Use LLM for aggressive compression
+        "svt_threshold": 0.58,      # SVT(0.58)
+        "top_k_ratio": 0.38,        # Top-k(38%)
+        "dedup_threshold": 0.72,    # NoisyKNN(0.72)
+        "use_llm": True,
     },
 }
 
@@ -94,26 +94,36 @@ def _contains_pii(text: str) -> bool:
 
 
 def _is_pii_only_clause(text: str) -> bool:
-    """Check if clause contains ONLY PII + filler words (no technical content)."""
-    # Remove PII placeholders and check remaining content
+    """True only when the clause is personal/filler with no real request or task."""
+    if QUESTION_PATTERN.search(text):
+        return False
+    if re.search(r"\b(help|please|need|want|tell|show|explain|fix|refactor|implement)\b", text, re.I):
+        return False
+
     cleaned = text
     for pattern in [EMAIL_RE, PHONE_RE, AGE_RE, NAME_RE, LOCATION_RE, COMPANY_RE]:
         cleaned = pattern.sub("", cleaned)
     cleaned = re.sub(r"\[REDACTED_\w+\]", "", cleaned)
-    cleaned = cleaned.strip()
-    
-    # If what's left is just filler/greetings, it's PII-only
-    if not cleaned or len(cleaned) < 10:
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    if not cleaned or len(cleaned) < 8:
         return True
-    
-    # Check for technical content
-    has_technical = (
-        CODE_PATTERN.search(text) or
-        ERROR_PATTERN.search(text) or
-        FILENAME_PATTERN.search(text) or
-        STACK_TRACE_PATTERN.search(text)
+
+    has_technical = bool(
+        CODE_PATTERN.search(text)
+        or ERROR_PATTERN.search(text)
+        or FILENAME_PATTERN.search(text)
+        or STACK_TRACE_PATTERN.search(text)
     )
-    return not has_technical
+    if has_technical:
+        return False
+
+    # Mostly redacted tokens left → personal context only
+    redacted_ratio = len(re.findall(r"\[REDACTED_\w+\]", text)) / max(1, len(text.split()))
+    if redacted_ratio > 0.3:
+        return True
+
+    return _is_filler_clause(cleaned)
 
 
 def _is_filler_clause(text: str) -> bool:
@@ -207,6 +217,10 @@ def _compute_salience(clause: str, task_context: str = "") -> float:
     
     # 1. Question/inquiry detection (high value)
     if QUESTION_PATTERN.search(clause):
+        score += 0.45
+
+    # 1b. Constraints / requirements
+    if re.search(r"\b(must|should|required|do not|don't|never|always|keep|preserve)\b", text_lower):
         score += 0.35
     
     # 2. Code/technical content
@@ -360,12 +374,21 @@ def _algorithm_compress(
     
     # Step 5: Noisy KNN (deduplication)
     final_clauses = _apply_noisy_knn(after_topk, config["dedup_threshold"])
+
+    # Fallback: never drop everything — keep highest-salience clause
+    if not final_clauses and clauses:
+        best = max(clauses, key=lambda c: c.salience)
+        final_clauses = [best]
     
     # Join kept clauses
     kept_texts = [c.text for c in final_clauses]
     sanitized = " ".join(kept_texts)
     
-    algorithm = f"SVT(τ={config['svt_threshold']}) → Top-k({config['top_k_ratio']:.0%}) → NoisyKNN(θ={config['dedup_threshold']})"
+    algorithm = (
+        f"SVT({config['svt_threshold']}) → "
+        f"Top-k({config['top_k_ratio']:.0%}) → "
+        f"NoisyKNN({config['dedup_threshold']})"
+    )
     
     return sanitized, clauses, kept_texts, algorithm
 
@@ -433,9 +456,9 @@ def simplify_context(
     Main entry point for Agent 2: Privacy-aware context simplification.
     
     Three compression levels:
-    - LOW: SVT(0.25) + Top-k(85%) + NoisyKNN(0.92), no LLM
-    - MEDIUM: SVT(0.50) + Top-k(65%) + NoisyKNN(0.88), no LLM  
-    - HIGH: SVT(0.70) + Top-k(35%) + NoisyKNN(0.85), then LLM polish
+    - LOW: SVT(0.16) → Top-k(92%) → NoisyKNN(0.97), no LLM
+    - MEDIUM: SVT(0.38) → Top-k(68%) → NoisyKNN(0.86), no LLM
+    - HIGH: SVT(0.58) → Top-k(38%) → NoisyKNN(0.72), then LLM polish
     """
     # Phase 1: Rule-based prefilter
     preprocessed, pii_tags = _prefilter(raw_context)
