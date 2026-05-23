@@ -2,7 +2,7 @@
  * Agent 3: review / validation (ported from Hackathon/agents/reviewer.py).
  */
 
-import { chat } from "./llm-chat";
+import { openRouterChat } from "../../services/openrouter.client";
 import type { Agent2Result } from "./context-simplifier";
 import {
   AGE_RE,
@@ -318,7 +318,7 @@ async function llmReview(
   ];
 
   try {
-    const response = await chat(messages);
+    const response = await openRouterChat("agent3", messages);
     const result = extractJsonFromResponse(response);
     const checks = normalizeChecks(result.checks);
     const approved = Boolean(result.approved);
