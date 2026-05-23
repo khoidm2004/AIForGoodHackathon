@@ -141,8 +141,13 @@ function quickChecks(
     };
   }
 
+  // Lexical cosine is low when rephrasing long→short; use lenient threshold
   const sim = computeSimilarity(original, sanitized);
-  if (sim < 0.3) {
+  const lengthRatio = sanitized.length / Math.max(original.length, 1);
+  // When heavily compressed (short output vs long input), lower the bar
+  const threshold = lengthRatio < 0.3 ? 0.08 : 0.15;
+
+  if (sim < threshold) {
     return {
       pass: false,
       fail: {
@@ -151,7 +156,7 @@ function quickChecks(
         similarityScore: sim,
         checks: { semantic_similarity: false },
         missingItems: ["core_intent"],
-        reason: `Semantic drift too severe (${sim.toFixed(2)} < 0.3)`,
+        reason: `Semantic drift too severe (${sim.toFixed(2)} < ${threshold})`,
         suggestions: ["Agent 2 over-compressed; retry with lower threshold"],
       },
     };
@@ -212,39 +217,32 @@ function buildReviewPrompt(
   return `Compare ORIGINAL vs SANITIZED and return ONE valid JSON object only.
 Do not use markdown. Do not wrap the JSON in code fences. Do not add headings.
 
-ORIGINAL:
+ORIGINAL (user's verbose prompt):
 """${original.slice(0, 2000)}"""
 
-SANITIZED (Agent 2 output):
+SANITIZED (simplified question by Agent 2):
 """${sanitized.slice(0, 1500)}"""
 
-Pre-computed similarity: ${simScore.toFixed(3)}
-
-Extracted from original (for reference):
-- Filenames: ${slice(origElems.filenames ?? [], 10).join(", ")}
-- Errors: ${slice(origElems.errors ?? [], 5).map((e) => e.slice(0, 50)).join(", ")}
-- Constraints: ${slice(origElems.constraints ?? [], 5).join(", ")}
-- Questions: ${slice(origElems.questions ?? [], 3).join(", ")}
+Pre-computed lexical similarity: ${simScore.toFixed(3)} (NOTE: low similarity is EXPECTED when rephrasing a long text into a short question)
 
 Agent 2 metadata:
 - Algorithm: ${agent2Meta.algorithm ?? ""}
 - Compression level: ${agent2Meta.compression_level ?? ""}
-- Active files: ${JSON.stringify(agent2Meta.active_files ?? [])}
-- Errors: ${JSON.stringify(agent2Meta.errors ?? [])}
-- Constraints: ${JSON.stringify(agent2Meta.constraints ?? [])}
-- Open questions: ${JSON.stringify(agent2Meta.open_questions ?? [])}
 - Important symbols: ${JSON.stringify(agent2Meta.important_symbols ?? [])}
+- Constraints: ${JSON.stringify(agent2Meta.constraints ?? [])}
 
-Rules:
-1. INTENT: Does sanitized capture the core request/question?
-2. FILES: Are all actively referenced filenames preserved?
-3. ERRORS: Are error messages/stack traces kept?
-4. CONSTRAINTS: Are "do not/must/keep" requirements preserved?
-5. TECHNICAL: Are API names, function calls, important symbols intact?
+TASK: Agent 2's job is to SIMPLIFY the user's prompt into a concise question. It is NOT required to keep every detail.
+
+Rules for approval:
+1. CORE INTENT: Does the simplified question capture what the user actually wants to know/do?
+2. KEY DECISION: If the user is asking "should I do X or Y", is that choice preserved?
+3. CONSTRAINTS: Are hard requirements ("must", "don't", specific goals like "for internship demo") kept?
+4. NOT REQUIRED to keep: background stories, names, locations, all technical details that are just context
 
 Decision:
-- APPROVE only if ALL critical elements preserved
-- FAIL if any constraint dropped or core intent changed
+- APPROVE if the simplified question correctly identifies what the user needs answered
+- APPROVE even if minor supporting details are dropped (that's the point of simplification)
+- FAIL only if the core question/intent is WRONG or MISSING entirely
 
 Return exactly this JSON shape:
 {
@@ -252,15 +250,12 @@ Return exactly this JSON shape:
   "confidence": 0.8,
   "checks": {
     "intent_preserved": true,
-    "files_preserved": true,
-    "errors_preserved": true,
-    "constraints_preserved": true,
-    "technical_symbols_intact": true
+    "key_decision_preserved": true,
+    "constraints_preserved": true
   },
-  "missing_items": ["specific items Agent 2 dropped"],
-  "false_positives": ["items Agent 2 kept that should be dropped"],
-  "reason": "one plain-text sentence, not a JSON object",
-  "retry_suggestion": "one plain-text hint for Agent 2, not a JSON object"
+  "missing_items": ["only list truly critical things that change the meaning"],
+  "reason": "one plain-text sentence",
+  "retry_suggestion": "one plain-text hint for Agent 2"
 }`;
 }
 
