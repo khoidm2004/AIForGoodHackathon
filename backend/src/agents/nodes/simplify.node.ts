@@ -61,11 +61,11 @@ const SIMILARITY_THRESHOLDS: Record<string, number> = {
   high: 0.75,
 };
 
-export function getSimilarityThreshold(level: string, retryCount: number): number {
-  const base = SIMILARITY_THRESHOLDS[level] ?? 0.5;
-  // Each retry lowers threshold slightly (minimum floor of 0.15)
-  const reduction = retryCount * 0.1;
-  return Math.max(0.15, base - reduction);
+export function getSimilarityThreshold(level: string, _retryCount: number): number {
+  // Threshold is FIXED per level — NOT reduced on retry.
+  // Retry exists so Agent 2 can try a LESS compressed rewrite,
+  // producing higher similarity naturally, rather than lowering the bar.
+  return SIMILARITY_THRESHOLDS[level] ?? 0.5;
 }
 
 export async function simplifyNode(state: PipelineState): Promise<Partial<PipelineState>> {
