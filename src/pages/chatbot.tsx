@@ -5,13 +5,13 @@ import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
 import { runPipeline } from "../services/api";
-import { useChatStore } from '../stores/chatStore';
 
-interface Message {
+export interface Message {
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
   simplify?: "low" | "medium" | "high";
+  simplifiedMessage?: string | null;   // thêm trường này
 }
 
 export default function Chatbot() {
@@ -23,7 +23,6 @@ export default function Chatbot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const setSimplifiedMessage = useChatStore((state) => state.setSimplifiedMessage);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -40,7 +39,7 @@ export default function Chatbot() {
     }
   }, [input]);
 
-  // Hiệu ứng gõ chữ – giữ nguyên để tạo trải nghiệm mượt mà
+  // Hiệu ứng gõ chữ
   const simulateTyping = (text: string): Promise<void> => {
     return new Promise((resolve) => {
       const words = text.split(" ");
@@ -84,6 +83,7 @@ export default function Chatbot() {
     setIsTyping(true);
 
     try {
+      console.log("Sending message to pipeline API:", { message: userInput, simplify });
       const data = await runPipeline(userInput, simplify);
       console.log("Pipeline API response:", data);
       if (data.result?.status === "approved") {
@@ -92,9 +92,9 @@ export default function Chatbot() {
           content: "",
           role: "assistant",
           timestamp: new Date(),
+          simplifiedMessage: data.result.simplifiedMessage ?? null,   // lưu trực tiếp vào message
         };
         setMessages((prev) => [...prev, assistantMessage]);
-        setSimplifiedMessage(data.result.simplifiedMessage ?? null); // store question as simplifyText
         await simulateTyping(assistantAnswer);
       } else {
         const errorMsg = "Sorry, I couldn't process your request. Please try again with a different query or check back later.";
@@ -102,9 +102,9 @@ export default function Chatbot() {
           content: "",
           role: "assistant",
           timestamp: new Date(),
+          simplifiedMessage: null,
         };
         setMessages((prev) => [...prev, assistantMessage]);
-        setSimplifiedMessage(null);
         await simulateTyping(errorMsg);
       }
     } catch (error) {
@@ -113,9 +113,9 @@ export default function Chatbot() {
         content: "",
         role: "assistant",
         timestamp: new Date(),
+        simplifiedMessage: null,
       };
       setMessages((prev) => [...prev, assistantMessage]);
-      setSimplifiedMessage(null);
       await simulateTyping(errorMessage);
     } finally {
       setIsTyping(false);
@@ -132,7 +132,7 @@ export default function Chatbot() {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex h-screen w-full bg-background">
-        <AppSidebar />
+        <AppSidebar messages={messages} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
