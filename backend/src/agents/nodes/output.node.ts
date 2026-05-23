@@ -1,6 +1,6 @@
 import { PipelineState } from "../state/pipeline.state";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { groqClient } from "../../services/groq.client";
+import { openRouterChatFromLangChain } from "../../services/openrouter.client";
 import { getRetryHistory, type RetryAttempt } from "./simplify.node";
 
 interface FormattedOutput {
@@ -104,7 +104,7 @@ export async function outputNode(state: PipelineState): Promise<Partial<Pipeline
   let llmAnswer = "";
 
   if (state.reviewPassed) {
-    const response = await groqClient.invoke([
+    const raw = await openRouterChatFromLangChain("agent3", [
       new SystemMessage(
         "Answer the user's question based on the simplified context. " +
         "Reply in one short paragraph. Plain text only — no JSON, markdown, code fences, or line breaks.",
@@ -114,7 +114,6 @@ export async function outputNode(state: PipelineState): Promise<Partial<Pipeline
         `Original context (reference):\n${state.originalMessage.slice(0, 1500)}`,
       ),
     ]);
-    const raw = typeof response.content === "string" ? response.content : "";
     llmAnswer = extractPlainAnswer(raw);
   }
 
