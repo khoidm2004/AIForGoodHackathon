@@ -364,9 +364,16 @@ export async function reviewAgent3(
     minSimilarity?: number;
     /** Optional: scale `minSimilarity` down by this factor when output is much shorter than input. */
     scaleByLengthRatio?: boolean;
+    /** User-requested compression level. At "high", LLM approval alone is enough to pass. */
+    compressionLevel?: string;
   } = {},
 ): Promise<ReviewResult> {
-  const { useLlm = true, minSimilarity = 0.5, scaleByLengthRatio = true } = options;
+  const {
+    useLlm = true,
+    minSimilarity = 0.5,
+    scaleByLengthRatio = true,
+    compressionLevel,
+  } = options;
   const agent2Meta = agent2Payload(agent2Output);
   const sanitized = asText(agent2Meta.sanitized_prompt);
 
@@ -407,7 +414,23 @@ export async function reviewAgent3(
   if (useLlm) {
     const llmResult = await llmReview(original, sanitized, sim, agent2Meta);
 
-    // Even if LLM approves, enforce a minimum similarity floor (length-scaled)
+    // At "high" compression, accept if EITHER condition holds:
+    //   (a) LLM approves, OR (b) similarity meets threshold.
+    // High compression naturally produces low lexical overlap, so requiring both is too strict.
+    if (compressionLevel === "high") {
+      const approved = llmResult.approved || sim >= effectiveMin;
+      return {
+        ...llmResult,
+        approved,
+        reason: approved
+          ? llmResult.approved
+            ? llmResult.reason
+            : `Similarity ${sim.toFixed(3)} ≥ threshold ${effectiveMin} (LLM rejected but sim is high enough at level "high")`
+          : `LLM rejected and similarity ${sim.toFixed(3)} < threshold ${effectiveMin}`,
+      };
+    }
+
+    // Other levels: enforce a minimum similarity floor even when the LLM approves.
     if (llmResult.approved && sim < effectiveMin) {
       return {
         ...llmResult,
