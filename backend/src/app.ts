@@ -16,6 +16,7 @@ if (process.env.NODE_ENV === "production") {
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.set("json spaces", 2);
 
 app.use("/health", healthRoutes);
 app.use("/warmup", warmupRoutes);

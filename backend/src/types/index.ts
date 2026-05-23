@@ -4,7 +4,7 @@ export interface PipelineInput {
 }
 
 export interface PipelineOutput {
-  result: string;
+  result: Record<string, unknown>;
   steps: string[];
 }
 
