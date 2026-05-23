@@ -6,11 +6,16 @@ import { openRouterChat } from "../../services/openrouter.client";
 import type { Agent2Result } from "./context-simplifier";
 import {
   AGE_RE,
+  AGE_VI_RE,
   EMAIL_RE,
   FILENAME_PATTERN,
   LOCATION_RE,
+  LOCATION_VI_RE,
   NAME_RE,
+  NAME_VI_RE,
+  NAME_VI_TITLE_RE,
   PHONE_RE,
+  PHONE_VI_RE,
   reTest,
 } from "./patterns";
 import { computeSimilarity } from "./similarity";
@@ -123,7 +128,18 @@ function quickChecks(
     };
   }
 
-  const piiPatterns = [EMAIL_RE, PHONE_RE, AGE_RE, NAME_RE, LOCATION_RE];
+  const piiPatterns = [
+    EMAIL_RE,
+    PHONE_RE,
+    PHONE_VI_RE,
+    AGE_RE,
+    AGE_VI_RE,
+    NAME_RE,
+    NAME_VI_RE,
+    NAME_VI_TITLE_RE,
+    LOCATION_RE,
+    LOCATION_VI_RE,
+  ];
   const foundPii = piiPatterns.filter((p) => reTest(p, sanitized)).map((p) => p.source.slice(0, 20) + "...");
 
   if (foundPii.length > 0) {
@@ -343,9 +359,14 @@ async function llmReview(
 export async function reviewAgent3(
   original: string,
   agent2Output: Agent2Result | Record<string, unknown>,
-  options: { useLlm?: boolean; minSimilarity?: number } = {},
+  options: {
+    useLlm?: boolean;
+    minSimilarity?: number;
+    /** Optional: scale `minSimilarity` down by this factor when output is much shorter than input. */
+    scaleByLengthRatio?: boolean;
+  } = {},
 ): Promise<ReviewResult> {
-  const { useLlm = true, minSimilarity = 0.5 } = options;
+  const { useLlm = true, minSimilarity = 0.5, scaleByLengthRatio = true } = options;
   const agent2Meta = agent2Payload(agent2Output);
   const sanitized = asText(agent2Meta.sanitized_prompt);
 
@@ -356,15 +377,26 @@ export async function reviewAgent3(
 
   const sim = computeSimilarity(original, sanitized);
 
+  // Scale threshold down when output is much shorter than input.
+  // Lexical cosine drops naturally for long→short rephrases, so we relax the bar.
+  let effectiveMin = minSimilarity;
+  if (scaleByLengthRatio) {
+    const lengthRatio = sanitized.length / Math.max(original.length, 1);
+    if (lengthRatio < 0.5) {
+      const scale = Math.max(0.45, 0.45 + (lengthRatio / 0.5) * 0.55);
+      effectiveMin = Number((minSimilarity * scale).toFixed(3));
+    }
+  }
+
   if (useLlm) {
     const llmResult = await llmReview(original, sanitized, sim, agent2Meta);
 
-    // Even if LLM approves, enforce a minimum similarity floor
-    if (llmResult.approved && sim < minSimilarity) {
+    // Even if LLM approves, enforce a minimum similarity floor (length-scaled)
+    if (llmResult.approved && sim < effectiveMin) {
       return {
         ...llmResult,
         approved: false,
-        reason: `LLM approved but similarity too low (${sim.toFixed(3)} < ${minSimilarity}); Agent 2 likely missed core content`,
+        reason: `LLM approved but similarity too low (${sim.toFixed(3)} < ${effectiveMin}); Agent 2 likely missed core content`,
         suggestions: ["Retry with less aggressive compression to preserve more key terms"],
       };
     }
@@ -372,7 +404,7 @@ export async function reviewAgent3(
     return llmResult;
   }
 
-  const approved = sim >= minSimilarity;
+  const approved = sim >= effectiveMin;
   return {
     approved,
     confidence: approved ? 0.7 : 0.3,
@@ -380,7 +412,7 @@ export async function reviewAgent3(
     checks: { similarity_threshold: approved },
     missingItems: approved ? [] : ["elements potentially lost"],
     reason:
-      `Similarity ${sim.toFixed(3)} vs threshold ${minSimilarity}` +
+      `Similarity ${sim.toFixed(3)} vs threshold ${effectiveMin}` +
       (approved ? "" : " - possible over-compression"),
     suggestions: sim < 0.7 ? ["Enable LLM review for detailed analysis"] : [],
   };
