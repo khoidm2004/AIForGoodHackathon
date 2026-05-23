@@ -1,25 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, Shield, Lock, Sun, Moon, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-
 import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
-import { addAIResponse, finishAIResponse } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
+import { runPipeline } from "../services/api";
 
 interface Message {
-  id: string;
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
-  privacyMode?: "low" | "medium" | "high";
+  simplify?: "low" | "medium" | "high";
 }
 
 export default function Chatbot() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [privacyMode, setPrivacyMode] = useState<"low" | "medium" | "high">("medium");
+  const [simplify, setSimplify] = useState<"low" | "medium" | "high">("medium");
   const { darkMode, toggleTheme } = useTheme();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,11 +56,9 @@ export default function Chatbot() {
             }
             return newMessages;
           });
-          addAIResponse(currentText);
           wordIndex++;
         } else {
           clearInterval(intervalId);
-          finishAIResponse();
           resolve();
         }
       }, 50);
@@ -74,11 +70,10 @@ export default function Chatbot() {
     if (!input.trim() || isTyping) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
       content: input.trim(),
       role: "user",
       timestamp: new Date(),
-      privacyMode: privacyMode,
+      simplify: simplify,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -87,41 +82,30 @@ export default function Chatbot() {
     setIsTyping(true);
 
     try {
-      // Gọi API thực tế – thay đổi URL nếu cần
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userInput,
-          privacyMode: privacyMode,
-        }),
-      });
-
-      const data = await response.json();
-
-      // Kiểm tra success và status theo cấu trúc API đã cho
-      if (data.success && data.data?.result?.status === "approved") {
-        const assistantAnswer = data.data.result.answer;
-
-        // Thêm tin nhắn assistant rỗng trước khi bắt đầu gõ chữ
+      const data = await runPipeline(userInput, simplify);
+      console.log("Pipeline API response:", data);
+      if (data.result?.status === "approved") {
+        const assistantAnswer = data.result.answer;
         const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
           content: "",
           role: "assistant",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
-
         await simulateTyping(assistantAnswer);
       } else {
-        // Trường hợp API trả về không thành công hoặc status không phải approved
-        throw new Error("Invalid response from assistant");
+        const errorMsg = "Sorry, I couldn't process your request. Please try again with a different query or check back later.";
+        const assistantMessage: Message = {
+          content: "",
+          role: "assistant",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        await simulateTyping(errorMsg);
       }
     } catch (error) {
-      console.error("Chat API error:", error);
       const errorMessage = "Sorry, I'm having trouble responding right now. Please try again later.";
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
         content: "",
         role: "assistant",
         timestamp: new Date(),
@@ -144,8 +128,8 @@ export default function Chatbot() {
     <SidebarProvider defaultOpen={false}>
       <div className="flex h-screen w-full bg-background">
         <AppSidebar />
-Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-bo        <div className="flex flex-1 flex-col overflow-hidden">
-          <header classrder bg-card rounded-b-lg rounded-t-lg">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
                 <Sparkles className="size-5 text-primary-foreground" />
@@ -203,9 +187,9 @@ Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b bor
             ) : (
               <div className="space-y-6 mx-auto">
                 <AnimatePresence initial={false}>
-                  {messages.map((message) => (
+                  {messages.map((message, idx) => (
                     <motion.div
-                      key={message.id}
+                      key={`${message.timestamp.getTime()}-${idx}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
@@ -229,15 +213,15 @@ Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b bor
                         <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
                           {message.content}
                         </p>
-                        {message.role === "user" && message.privacyMode && (
+                        {message.role === "user" && message.simplify && (
                           <div className="mt-1 text-[10px] opacity-70 flex items-center gap-1">
-                            {message.privacyMode === "low" && <Info className="size-3" />}
-                            {message.privacyMode === "medium" && <Shield className="size-3" />}
-                            {message.privacyMode === "high" && <Lock className="size-3" />}
+                            {message.simplify === "low" && <Info className="size-3" />}
+                            {message.simplify === "medium" && <Shield className="size-3" />}
+                            {message.simplify === "high" && <Lock className="size-3" />}
                             <span>
-                              {message.privacyMode === "low" && "Low mode"}
-                              {message.privacyMode === "medium" && "Medium mode"}
-                              {message.privacyMode === "high" && "High mode"}
+                              {message.simplify === "low" && "Low mode"}
+                              {message.simplify === "medium" && "Medium mode"}
+                              {message.simplify === "high" && "High mode"}
                             </span>
                           </div>
                         )}
@@ -311,10 +295,10 @@ Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b bor
               <div className="flex gap-3 mt-2 justify-start">
                 <button
                   type="button"
-                  onClick={() => setPrivacyMode("low")}
+                  onClick={() => setSimplify("low")}
                   disabled={isTyping}
                   className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
-                    privacyMode === "low"
+                    simplify === "low"
                       ? "bg-green-500/10 border-green-500 text-green-600 shadow-sm"
                       : "bg-card border-border text-muted-foreground hover:bg-accent"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -324,10 +308,10 @@ Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b bor
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPrivacyMode("medium")}
+                  onClick={() => setSimplify("medium")}
                   disabled={isTyping}
                   className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
-                    privacyMode === "medium"
+                    simplify === "medium"
                       ? "bg-yellow-500/10 border-yellow-500 text-yellow-600 shadow-sm"
                       : "bg-card border-border text-muted-foreground hover:bg-accent"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -337,10 +321,10 @@ Name="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b bor
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPrivacyMode("high")}
+                  onClick={() => setSimplify("high")}
                   disabled={isTyping}
                   className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
-                    privacyMode === "high"
+                    simplify === "high"
                       ? "bg-red-500/10 border-red-500 text-red-600 shadow-sm"
                       : "bg-card border-border text-muted-foreground hover:bg-accent"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
