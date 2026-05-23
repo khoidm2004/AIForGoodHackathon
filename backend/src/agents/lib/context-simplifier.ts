@@ -320,19 +320,39 @@ function extractJsonObject(text: string): Record<string, unknown> {
   return JSON.parse(body.slice(start, end + 1)) as Record<string, unknown>;
 }
 
-async function llmCompress(text: string): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
+async function llmSimplifyQuestion(
+  text: string,
+  level: CompressionLevel,
+): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
+  const aggressiveness =
+    level === "high"
+      ? "Be very concise — 1-2 sentences max. Drop all context that isn't essential to answer the question."
+      : level === "medium"
+        ? "Be concise — keep the core question and key technical details. 2-3 sentences max."
+        : "Simplify slightly — remove filler/repetition but keep technical context. Keep it short and clear.";
+
   const systemPrompt =
-    "You are a privacy-aware context reducer. HIGH compression mode.\n\n" +
-    "Your job: STRIP AWAY all unnecessary content, keeping ONLY:\n" +
-    "1. The core request/question\n" +
-    "2. Technical references (filenames, errors, function names)\n" +
-    "3. Constraints or requirements\n\n" +
-    "This is NOT summarization — do not rephrase.\n" +
-    "Keep sentences verbatim, just remove whole sentences that are filler/PII-only.\n\n" +
-    'Return JSON:\n' +
-    '{"sanitized_prompt": "kept sentences joined", "removed_parts": [...], ' +
-    '"important_symbols": [...], "active_files": [...], "errors": [...], ' +
-    '"constraints": [...], "open_questions": [...]}';
+    "You are a question simplifier. Your job is to rewrite the user's verbose/messy prompt " +
+    "into a clear, concise QUESTION that another AI agent can answer directly.\n\n" +
+    "Rules:\n" +
+    "1. Read the ENTIRE input carefully. The real question is often at the END, not the beginning.\n" +
+    "2. The user may ramble — ignore tangents, stories, introductions. Focus on what they ACTUALLY need answered.\n" +
+    "3. Preserve ALL technical terms: filenames, error names, library names, architecture terms, model names.\n" +
+    "4. Keep key constraints: 'must', 'should not', 'for an internship demo', deadlines, specific goals.\n" +
+    "5. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
+    "6. Rephrase into a direct, answerable question or request.\n" +
+    `7. ${aggressiveness}\n\n` +
+    "IMPORTANT: Look for the ACTUAL question/decision. Signals: 'I'm wondering', 'should I', 'is it better to', " +
+    "'how to', 'do you think', question marks (?). If there's a question mark, that's likely the core question.\n\n" +
+    "EXAMPLES:\n" +
+    'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
+    'Output: {"simplified_question": "Do you think it will rain today given the cloudy weather?", ...}\n\n' +
+    'Input: "So I was talking with someone and we discussed whether my RF anomaly detection setup should stream raw Sub-GHz packets directly into Node.js or pass through a TinyML classifier on-device, because I originally wanted UART logging into InfluxDB but now I\'m wondering if separating realtime inference, retraining, and vector storage into independent services would reduce latency during burst traffic or if that\'s overengineering for an internship demo."\n' +
+    'Output: {"simplified_question": "For an RF anomaly detection setup, should I separate realtime inference, retraining, and vector storage into independent services to reduce latency during burst traffic, or is that overengineering for an internship demo? Context: streaming Sub-GHz packets to Node.js backend vs TinyML classifier on-device, with UART logging into InfluxDB.", ...}\n\n' +
+    "Return JSON:\n" +
+    '{"simplified_question": "the clear concise question preserving technical terms", ' +
+    '"important_symbols": ["technical terms preserved"], "active_files": [], "errors": [], ' +
+    '"constraints": ["key constraints"]}';
 
   const llmOutput = await chat([
     { role: "system", content: systemPrompt },
@@ -341,10 +361,10 @@ async function llmCompress(text: string): Promise<{ sanitized: string; structure
 
   try {
     const result = extractJsonObject(llmOutput);
-    const sanitized = String(result.sanitized_prompt ?? "").trim();
+    const sanitized = String(result.simplified_question ?? "").trim();
     return { sanitized, structured: result };
   } catch {
-    return { sanitized: text, structured: { sanitized_prompt: text, error: "LLM parsing failed" } };
+    return { sanitized: text, structured: { simplified_question: text, error: "LLM parsing failed" } };
   }
 }
 
@@ -355,22 +375,21 @@ export async function simplifyContext(
   taskContext = "",
 ): Promise<Agent2Result> {
   const { text: preprocessed, piiTags } = prefilter(rawContext);
-  const config = LEVEL_CONFIG[compressionLevel] ?? LEVEL_CONFIG.medium;
 
+  // Phase 1: Algorithmic pre-filtering (for metadata/stats only)
   const { sanitized: sanitizedAlgo, clauses, keptTexts, algorithm } = algorithmCompress(
     preprocessed,
     compressionLevel,
     taskContext,
   );
 
-  let llmResult: Record<string, unknown> = {};
-  let finalSanitized = sanitizedAlgo;
-
-  if (config.useLlm && compressionLevel === "high") {
-    const { sanitized, structured } = await llmCompress(sanitizedAlgo);
-    llmResult = structured;
-    finalSanitized = sanitized || sanitizedAlgo;
-  }
+  // Phase 2: LLM rephrase into a clear question
+  // Feed the full preprocessed text so LLM sees all context to identify the real question
+  const { sanitized: llmSimplified, structured: llmResult } = await llmSimplifyQuestion(
+    preprocessed,
+    compressionLevel,
+  );
+  const finalSanitized = llmSimplified || sanitizedAlgo;
 
   const similarity = finalSanitized ? computeSimilarity(rawContext, finalSanitized) : 0;
   const piiRemaining = containsPii(finalSanitized);
@@ -378,7 +397,7 @@ export async function simplifyContext(
 
   const compressed: Record<string, unknown> = {
     sanitized_prompt: finalSanitized,
-    algorithm,
+    algorithm: `${algorithm} → LLM-simplify(${compressionLevel})`,
     compression_level: compressionLevel,
     removed_parts: clauses.filter((c) => !keptTexts.includes(c.text)).map((c) => c.text),
     kept_clauses: keptTexts,
@@ -396,7 +415,6 @@ export async function simplifyContext(
     "active_files",
     "errors",
     "constraints",
-    "open_questions",
   ] as const) {
     const fromLlm = llmResult[key];
     if (Array.isArray(fromLlm) && fromLlm.length > 0) {
@@ -414,6 +432,6 @@ export async function simplifyContext(
     sanitizedPrompt: finalSanitized,
     clauses,
     keptClauses: keptTexts,
-    algorithm,
+    algorithm: `${algorithm} → LLM-simplify(${compressionLevel})`,
   };
 }
