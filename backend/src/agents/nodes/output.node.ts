@@ -62,27 +62,39 @@ function formatRetryHistory(history: RetryAttempt[]): FormattedOutput {
   };
 }
 
+function normalizeAnswer(text: string): string {
+  return text
+    .replace(/\r\n/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractPlainAnswer(raw: string): string {
   const trimmed = raw.trim();
+  let answer = trimmed;
+
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) {
     try {
       const parsed = JSON.parse(fenced[1]) as { answer?: string };
-      if (parsed.answer) return parsed.answer.trim();
+      if (parsed.answer) answer = parsed.answer.trim();
+      else answer = fenced[1].trim();
     } catch {
-      /* use fenced body as plain text */
+      answer = fenced[1].trim();
     }
-    return fenced[1].trim();
-  }
-  if (trimmed.startsWith("{")) {
+  } else if (trimmed.startsWith("{")) {
     try {
       const parsed = JSON.parse(trimmed) as { answer?: string };
-      if (parsed.answer) return parsed.answer.trim();
+      if (parsed.answer) answer = parsed.answer.trim();
     } catch {
-      /* not JSON */
+      /* use trimmed as-is */
     }
+  } else {
+    answer = trimmed.replace(/^here is.*?:\s*/i, "").trim();
   }
-  return trimmed.replace(/^here is.*?:\s*/i, "").trim();
+
+  return normalizeAnswer(answer);
 }
 
 export async function outputNode(state: PipelineState): Promise<Partial<PipelineState>> {
@@ -95,7 +107,7 @@ export async function outputNode(state: PipelineState): Promise<Partial<Pipeline
     const response = await groqClient.invoke([
       new SystemMessage(
         "Answer the user's question based on the simplified context. " +
-        "Reply in plain text only. No JSON, no markdown, no code fences.",
+        "Reply in one short paragraph. Plain text only — no JSON, markdown, code fences, or line breaks.",
       ),
       new HumanMessage(
         `Question:\n${state.simplifiedMessage}\n\n` +
