@@ -21,7 +21,7 @@ The app mimics a ChatGPT-style experience with configurable privacy levels (low 
 - **Design:** Figma
 - **Frontend:** Vite + React + Tailwind + Shadcn UI
 - **Backend:** Node.js + TypeScript + Express + Docker
-- **AI/LLM:** LangGraph + Groq + OpenRouter + HuggingFace
+- **AI/LLM:** LangGraph + Groq + OpenRouter
 - **Deploy:** Vercel + Render
 
 ## Team Members 👷
