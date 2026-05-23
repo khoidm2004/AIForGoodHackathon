@@ -8,13 +8,16 @@ import healthRoutes from './api/routes/health.routes';
 
 const app = express();
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.use(helmet());
 app.use(cors());
-app.use(rateLimitMiddleware);
 app.use(express.json());
 
 app.use('/health', healthRoutes);
-app.use('/api/pipeline', pipelineRoutes);
+app.use('/api/pipeline', rateLimitMiddleware, pipelineRoutes);
 
 app.use(errorMiddleware);
 
