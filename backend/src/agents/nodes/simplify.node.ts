@@ -61,11 +61,30 @@ const SIMILARITY_THRESHOLDS: Record<string, number> = {
   high: 0.75,
 };
 
-export function getSimilarityThreshold(level: string, _retryCount: number): number {
-  // Threshold is FIXED per level — NOT reduced on retry.
-  // Retry exists so Agent 2 can try a LESS compressed rewrite,
-  // producing higher similarity naturally, rather than lowering the bar.
-  return SIMILARITY_THRESHOLDS[level] ?? 0.5;
+/**
+ * Compute pass/fail similarity threshold for a given simplify level.
+ *
+ * Threshold is FIXED per level (no retry decay), but **scales down with
+ * compression ratio**: when output is much shorter than input, lexical
+ * cosine drops naturally, so we relax the bar proportionally.
+ *
+ * `lengthRatio` = sanitized.length / original.length (0..1).
+ *   ratio ≥ 0.5  → full base threshold
+ *   ratio = 0.25 → 0.75× base
+ *   ratio = 0.10 → 0.55× base
+ *   ratio ≤ 0.05 → 0.45× base (floor)
+ */
+export function getSimilarityThreshold(
+  level: string,
+  _retryCount: number,
+  lengthRatio?: number,
+): number {
+  const base = SIMILARITY_THRESHOLDS[level] ?? 0.5;
+  if (lengthRatio === undefined || lengthRatio >= 0.5) return base;
+
+  // Linear scale from 0.45 (very compressed) to 1.0 (ratio = 0.5)
+  const scale = Math.max(0.45, 0.45 + (lengthRatio / 0.5) * 0.55);
+  return Number((base * scale).toFixed(3));
 }
 
 export async function simplifyNode(state: PipelineState): Promise<Partial<PipelineState>> {
