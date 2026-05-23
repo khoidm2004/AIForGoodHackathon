@@ -324,12 +324,52 @@ async function llmSimplifyQuestion(
   text: string,
   level: CompressionLevel,
 ): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
-  const lengthRule =
-    level === "high"
-      ? "LENGTH: Write exactly 1 sentence. No run-on paragraphs."
-      : level === "medium"
-        ? "LENGTH: Write 1-2 complete sentences (not one long run-on). Second sentence may add key technical context."
-        : "LENGTH: Write 2-3 complete sentences. First sentence = core question. Next sentence(s) = essential technical context the answerer needs (agent roles, stack, constraints). Do NOT cram everything into one sentence.";
+  let strategy: { length: string; scope: string; examples: string };
+
+  if (level === "high") {
+    strategy = {
+      length: "LENGTH: Exactly 1 sentence. Strict — no more.",
+      scope:
+        "SCOPE: Extract ONLY the core question. Drop ALL context, technical detail, and extra terms. " +
+        "The result must be answerable standalone without any surrounding context.",
+      examples:
+        'EXAMPLES:\n' +
+        'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
+        'Output: {"simplified_question": "Will it rain today?", ...}\n\n' +
+        'Input: "During the hackathon I built Agent Alpha for parsing and Agent Beta for hallucination checks; my architecture doc is 17 pages. Should I cut down to one agent for the demo?"\n' +
+        'Output: {"simplified_question": "Should I cut down to one agent for the demo?", ...}',
+    };
+  } else if (level === "medium") {
+    strategy = {
+      length: "LENGTH: 1-2 sentences. Second sentence may add the most critical technical term or constraint.",
+      scope:
+        "SCOPE: Keep the core question + 1-2 key technical terms the answerer needs. " +
+        "Drop filler, backstory, and any detail that isn't essential to answer correctly. " +
+        "Do NOT preserve every technical term — only the most important one or two.",
+      examples:
+        'EXAMPLES:\n' +
+        'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
+        'Output: {"simplified_question": "Will it rain today given the cloudy weather?", ...}\n\n' +
+        'Input: "During the hackathon I built Agent Alpha for parsing and Agent Beta for hallucination checks; my architecture doc is 17 pages. Should I cut down to one agent for the demo?"\n' +
+        'Output: {"simplified_question": "Should I cut the multi-agent design to one agent for the internship demo? The system has separate agents for parsing, hallucination checks, and output compression.", ...}',
+    };
+  } else {
+    strategy = {
+      length:
+        "LENGTH: 2-3 sentences. First sentence = core question. Remaining sentence(s) = enough technical " +
+        "context so the answerer can respond correctly without seeing the original prompt.",
+      scope:
+        "SCOPE: Keep the core question + important technical context: agent roles, stack components, " +
+        "constraints, specific terms. Preserve ALL technical terms that matter to the answer. " +
+        "The goal is that someone reading only your output can give a correct, informed answer.",
+      examples:
+        'EXAMPLES:\n' +
+        'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
+        'Output: {"simplified_question": "Will it rain today? I am currently in Helsinki where the weather is cloudy.", ...}\n\n' +
+        'Input: "During the hackathon I built Agent Alpha for parsing and Agent Beta for hallucination checks; my architecture doc is 17 pages. Should I cut down to one agent for the demo?"\n' +
+        'Output: {"simplified_question": "Should I cut the multi-agent design to one agent for a machine learning infrastructure internship demo? The current architecture has Agent Alpha for sensor/image parsing, Agent Beta for hallucination checks and confidence thresholds, and Agent Gamma for embedding compression before vector storage. The architecture doc grew to 17 pages but the original goal was a small MVP.", ...}',
+    };
+  }
 
   const systemPrompt =
     "You are a question simplifier. Your job is to rewrite the user's verbose/messy prompt " +
@@ -337,24 +377,15 @@ async function llmSimplifyQuestion(
     "Rules:\n" +
     "1. Read the ENTIRE input carefully. The real question is often at the END, not the beginning.\n" +
     "2. The user may ramble — ignore tangents, stories, introductions. Focus on what they ACTUALLY need answered.\n" +
-    "3. Preserve ALL technical terms: filenames, error names, library names, architecture terms, model names.\n" +
-    "4. Keep key constraints: 'must', 'should not', 'for an internship demo', deadlines, specific goals.\n" +
-    "5. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
-    "6. Rephrase into a direct, answerable question or request.\n" +
-    `7. ${lengthRule}\n\n` +
-    "IMPORTANT: Look for the ACTUAL question/decision. Signals: 'I'm wondering', 'should I', 'is it better to', " +
-    "'how to', 'do you think', question marks (?). If there's a question mark, that's likely the core question.\n\n" +
-    "EXAMPLES:\n" +
-    'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
-    'Output: {"simplified_question": "Do you think it will rain today given the cloudy weather?", ...}\n\n' +
-    'Input: "So I was talking with someone and we discussed whether my RF anomaly detection setup should stream raw Sub-GHz packets directly into Node.js or pass through a TinyML classifier on-device, because I originally wanted UART logging into InfluxDB but now I\'m wondering if separating realtime inference, retraining, and vector storage into independent services would reduce latency during burst traffic or if that\'s overengineering for an internship demo."\n' +
-    'Output: {"simplified_question": "For an RF anomaly detection setup, should I separate realtime inference, retraining, and vector storage into independent services to reduce latency during burst traffic, or is that overengineering for an internship demo? Context: streaming Sub-GHz packets to Node.js backend vs TinyML classifier on-device, with UART logging into InfluxDB.", ...}\n\n' +
-    'Input: (long ramble about hackathon, 17-page architecture doc, Agent Alpha/Beta/Gamma, vector DB, internship demo)\n' +
-    'Output (low compression — 2-3 sentences): {"simplified_question": "For a machine learning infrastructure internship demo, should I keep a multi-agent design or cut down to one agent? The current design has Agent Alpha for sensor/image parsing, Agent Beta for hallucination checks, and Agent Gamma for embedding compression before vector DB storage. The architecture doc grew to 17 pages but the original goal was a small MVP.", ...}\n\n' +
+    "3. Preserve essential technical terms. Be ruthless about what is truly essential.\n" +
+    "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
+    "5. Rephrase into a direct, answerable question or request.\n" +
+    `6. ${strategy.length}\n` +
+    `7. ${strategy.scope}\n\n` +
+    "${strategy.examples}\n\n" +
     "Return JSON:\n" +
-    '{"simplified_question": "the clear concise question preserving technical terms", ' +
-    '"important_symbols": ["technical terms preserved"], "active_files": [], "errors": [], ' +
-    '"constraints": ["key constraints"]}';
+    '{"simplified_question": "the clear concise question", ' +
+    '"important_symbols": ["terms you preserved"], "active_files": [], "errors": [], "constraints": []}';
 
   const llmOutput = await chat([
     { role: "system", content: systemPrompt },
