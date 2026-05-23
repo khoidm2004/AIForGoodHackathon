@@ -4,4 +4,4 @@ node_modules
 .code-review-graph/
 dist/
 
-src/test-pipeline.ts
+backend/src/test-pipeline.ts
