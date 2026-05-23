@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const runPipelineSchema = z.object({
   message: z.string().min(1),

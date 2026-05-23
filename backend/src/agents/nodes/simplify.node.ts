@@ -1,4 +1,4 @@
-import { PipelineState } from '../state/pipeline.state';
+import { PipelineState } from "../state/pipeline.state";
 
 export async function simplifyNode(state: PipelineState): Promise<Partial<PipelineState>> {
   if (!state.shouldSimplify) return { simplifiedMessage: state.preprocessedMessage };

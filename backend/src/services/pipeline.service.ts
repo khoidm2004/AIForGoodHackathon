@@ -1,5 +1,5 @@
-import { pipelineGraph } from '../agents/graphs/pipeline.graph';
-import { PipelineInput, PipelineOutput } from '../types';
+import { pipelineGraph } from "../agents/graphs/pipeline.graph";
+import { PipelineInput, PipelineOutput } from "../types";
 
 export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
   const result = await pipelineGraph.invoke({
@@ -8,6 +8,6 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
   });
   return {
     result: result.finalOutput,
-    steps: ['preprocess', 'simplify', 'review', 'output'],
+    steps: ["preprocess", "simplify", "review", "output"],
   };
 }
