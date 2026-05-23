@@ -329,7 +329,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </button>
               </div>
 
-              <p className="hidden min-[651px]:text-xs text-muted-foreground text-center mt-3">
+              <p className="hidden min-[651px]:block text-xs text-muted-foreground text-center mt-3">
                 Press Enter to send, Shift + Enter for new line
               </p>
             </form>
