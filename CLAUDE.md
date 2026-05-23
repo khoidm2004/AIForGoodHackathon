@@ -2,16 +2,16 @@
 
 **ALWAYS use code-review-graph MCP tools BEFORE Grep/Glob/Read.**
 
-| Tool | Use when |
-|------|----------|
-| `detect_changes` | Reviewing code changes |
-| `get_review_context` | Source snippets for review |
-| `get_impact_radius` | Blast radius of a change |
-| `get_affected_flows` | Execution paths impacted |
-| `query_graph` | Tracing callers, callees, imports, tests |
-| `semantic_search_nodes` | Finding functions/classes by name |
-| `get_architecture_overview` | High-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
+| Tool                        | Use when                                 |
+| --------------------------- | ---------------------------------------- |
+| `detect_changes`            | Reviewing code changes                   |
+| `get_review_context`        | Source snippets for review               |
+| `get_impact_radius`         | Blast radius of a change                 |
+| `get_affected_flows`        | Execution paths impacted                 |
+| `query_graph`               | Tracing callers, callees, imports, tests |
+| `semantic_search_nodes`     | Finding functions/classes by name        |
+| `get_architecture_overview` | High-level codebase structure            |
+| `refactor_tool`             | Planning renames, finding dead code      |
 
 **Workflow:** Graph auto-updates on file changes. Use `detect_changes` for review, `get_affected_flows` for impact, `query_graph` pattern="tests_for" for coverage.
 

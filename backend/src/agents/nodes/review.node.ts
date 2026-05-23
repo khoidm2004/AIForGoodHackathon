@@ -1,4 +1,4 @@
-import { PipelineState } from '../state/pipeline.state';
+import { PipelineState } from "../state/pipeline.state";
 
 export async function reviewNode(state: PipelineState): Promise<Partial<PipelineState>> {
   const passed = state.simplifiedMessage.length > 0;
