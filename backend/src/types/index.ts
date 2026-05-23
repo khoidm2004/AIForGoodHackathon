@@ -1,6 +1,8 @@
+export type SimplifyLevel = "low" | "medium" | "high";
+
 export interface PipelineInput {
   message: string;
-  simplify?: boolean;
+  simplify?: SimplifyLevel;
 }
 
 export interface PipelineOutput {
@@ -14,7 +16,7 @@ export interface PipelineStateData {
   simplifiedMessage: string;
   reviewPassed: boolean;
   finalOutput: string;
-  shouldSimplify: boolean;
+  compressionLevel: string;
 }
 
 export interface ApiResponse<T> {
