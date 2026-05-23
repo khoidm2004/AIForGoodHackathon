@@ -357,7 +357,19 @@ export async function reviewAgent3(
   const sim = computeSimilarity(original, sanitized);
 
   if (useLlm) {
-    return llmReview(original, sanitized, sim, agent2Meta);
+    const llmResult = await llmReview(original, sanitized, sim, agent2Meta);
+
+    // Even if LLM approves, enforce a minimum similarity floor
+    if (llmResult.approved && sim < minSimilarity) {
+      return {
+        ...llmResult,
+        approved: false,
+        reason: `LLM approved but similarity too low (${sim.toFixed(3)} < ${minSimilarity}); Agent 2 likely missed core content`,
+        suggestions: ["Retry with less aggressive compression to preserve more key terms"],
+      };
+    }
+
+    return llmResult;
   }
 
   const approved = sim >= minSimilarity;
