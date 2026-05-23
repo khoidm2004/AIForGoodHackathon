@@ -4,7 +4,7 @@ import { Send, Sparkles, Shield, Lock, Sun, Moon, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 // Sidebar imports
-import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
+import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { addAIResponse, finishAIResponse } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
