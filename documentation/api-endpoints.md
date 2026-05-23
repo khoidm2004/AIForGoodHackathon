@@ -126,14 +126,14 @@ Runs the text pipeline: preprocess → simplify → review (with retries) → ou
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `message` | `string` | Yes | — | User text to process. Must be non-empty (`min` length 1). |
-| `simplify` | `boolean` | No | `false` | When `true`, the simplify step runs on the preprocessed text. When `false`, simplify is skipped and preprocessed text is passed through. |
+| `simplify` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | How aggressively to simplify. `high` = strong compression (similarity threshold 0.2). `medium` = balanced (0.5). `low` = light compression, preserve more wording (0.85). |
 
 **Example body**
 
 ```json
 {
   "message": "explain quantum computing in simple terms",
-  "simplify": true
+  "simplify": "medium"
 }
 ```
 
