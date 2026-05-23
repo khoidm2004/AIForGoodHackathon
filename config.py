@@ -8,6 +8,7 @@ if not OPENROUTER_API_KEY:
     raise ValueError("Missing required environment variable: OPENROUTER_API_KEY")
 
 OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-8b")
+REVIEWER_MODEL: str = os.getenv("REVIEWER_MODEL", "meta-llama/llama-3.2-3b-instruct")
 SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.75"))
 MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "2"))
 CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
