@@ -5,6 +5,7 @@ import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
 import { runPipeline } from "../services/api";
+import { useChatStore } from '../stores/chatStore';
 
 interface Message {
   content: string;
@@ -22,6 +23,7 @@ export default function Chatbot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const setSimplifiedMessage = useChatStore((state) => state.setSimplifiedMessage);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,6 +94,7 @@ export default function Chatbot() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
+        setSimplifiedMessage(data.result.simplifiedMessage ?? null); // store question as simplifyText
         await simulateTyping(assistantAnswer);
       } else {
         const errorMsg = "Sorry, I couldn't process your request. Please try again with a different query or check back later.";
@@ -101,6 +104,7 @@ export default function Chatbot() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
+        setSimplifiedMessage(null);
         await simulateTyping(errorMsg);
       }
     } catch (error) {
@@ -111,6 +115,7 @@ export default function Chatbot() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+      setSimplifiedMessage(null);
       await simulateTyping(errorMessage);
     } finally {
       setIsTyping(false);

@@ -8,7 +8,7 @@ const api = axios.create({
 export async function runPipeline(message: string, simplify: "low" | "medium" | "high") {
     const { data } = await api.post("/api/pipeline/run", { message, simplify });
     if (!data.success) throw new Error(data.error ?? "Pipeline failed");
-    return data.data as {result: { status: string; answer: string  } };
+    return data.data as {result: { status: string; answer: string; simplifiedMessage: string }};
 }
 
 export async function warmup() {
