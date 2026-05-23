@@ -17,7 +17,6 @@ export async function warmup() {
 
   try {
     const response = await api.get("/warmup");
-    console.log("Warmup response:", response.data);
     if (response.data?.ready === true) {
       localStorage.setItem("isWarmup", "true");
     }

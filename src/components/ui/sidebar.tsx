@@ -199,7 +199,24 @@ const { isMobile, state, open, openMobile, setOpenMobile, toggleSidebar } = useS
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full w-full flex-col relative">
+            {children}
+            <button
+              onClick={() => setOpenMobile(false)}
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 z-20",
+                "flex items-center justify-center",
+                "size-8 rounded-full bg-primary text-primary-foreground",
+                "shadow-lg shadow-primary/20 hover:scale-110 transition-all duration-200",
+                "cursor-pointer hover:bg-primary/90",
+                "focus:outline-none focus:ring-2 focus:ring-primary/20",
+                side === "left" ? "-right-4" : "-left-4"
+              )}
+              aria-label="Close Sidebar"
+            >
+              {side === "left" ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+            </button>
+          </div>
         </SheetContent>
       </Sheet>
     );

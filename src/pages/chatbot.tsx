@@ -5,6 +5,8 @@ import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
 import { runPipeline } from "../services/api";
+import { useSidebar } from "../components/ui/sidebar";
+import { ChevronRight } from "lucide-react";
 
 export interface Message {
   content: string;
@@ -12,6 +14,21 @@ export interface Message {
   timestamp: Date;
   simplify?: "low" | "medium" | "high";
   simplifiedMessage?: string | null;   // thêm trường này
+}
+
+function MobileOpenButton() {
+  const { isMobile, openMobile, toggleSidebar } = useSidebar();
+  if (!isMobile || openMobile) return null;
+
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="fixed top-1/2 -translate-y-1/2 left-[-10px] z-30 flex items-center justify-center size-8 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-110 transition-all duration-200 cursor-pointer"
+      aria-label="Open Sidebar"
+    >
+      <ChevronRight className="size-4" />
+    </button>
+  );
 }
 
 export default function Chatbot() {
@@ -83,9 +100,7 @@ export default function Chatbot() {
     setIsTyping(true);
 
     try {
-      console.log("Sending message to pipeline API:", { message: userInput, simplify });
       const data = await runPipeline(userInput, simplify);
-      console.log("Pipeline API response:", data);
       if (data.result?.status === "approved") {
         const assistantAnswer = data.result.answer;
         const assistantMessage: Message = {
@@ -133,6 +148,7 @@ export default function Chatbot() {
     <SidebarProvider defaultOpen={false}>
       <div className="flex h-screen w-full bg-background">
         <AppSidebar messages={messages} />
+        <MobileOpenButton />
         <div className="flex flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
