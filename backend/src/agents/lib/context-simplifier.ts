@@ -351,15 +351,17 @@ async function llmSimplifyQuestion(
   if (level === "high") {
     strategy = {
       scope:
-        "SCOPE: Lead with the core question, then keep technical details, constraints, and named components " +
-        "that affect the answer. Use as many sentences as needed — do not over-compress. " +
-        "Drop only filler, personal info, and unrelated backstory.",
+        "SCOPE: This is HIGH compression — produce the SHORTEST faithful version. " +
+        "Keep the core question + only the 1-2 critical details that materially change the answer. " +
+        "Prefer 1 sentence; use 2 only if a single sentence cannot carry the essential context. " +
+        "The output must be SHORTER than what 'low' or 'medium' compression would produce. " +
+        "Drop all filler, personal info, backstory, secondary terms, and decorative qualifiers.",
       examples:
         'EXAMPLES:\n' +
         'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
-        'Output: {"simplified_question": "Will it rain today? The weather is cloudy in Helsinki.", ...}\n\n' +
+        'Output: {"simplified_question": "Will it rain today in cloudy Helsinki?", ...}\n\n' +
         'Input: "During the hackathon I built Agent Alpha for parsing and Agent Beta for hallucination checks; my architecture doc is 17 pages. Should I cut down to one agent for the demo?"\n' +
-        'Output: {"simplified_question": "Should I cut the multi-agent design to one agent for a machine learning infrastructure internship demo? The current architecture has Agent Alpha for sensor/image parsing, Agent Beta for hallucination checks and confidence thresholds, and the architecture doc grew to 17 pages but the original goal was a small MVP.", ...}',
+        'Output: {"simplified_question": "Should I collapse the multi-agent design (parsing + hallucination check) into one agent for the demo?", ...}',
     };
   } else if (level === "medium") {
     strategy = {
@@ -389,28 +391,19 @@ async function llmSimplifyQuestion(
     };
   }
 
-  const isHigh = level === "high";
   const systemPrompt =
     "You are a question simplifier. Your job is to rewrite the user's verbose/messy prompt " +
-    (isHigh
-      ? "into a clear QUESTION with the context needed to answer it correctly.\n\n"
-      : "into a clear, concise QUESTION that another AI agent can answer directly.\n\n") +
+    "into a clear, focused QUESTION that another AI agent can answer directly.\n\n" +
     "Rules:\n" +
     "1. Read the ENTIRE input carefully. The real question is often at the END, not the beginning.\n" +
     "2. The user may ramble — ignore tangents, stories, introductions. Focus on what they ACTUALLY need answered.\n" +
-    (isHigh
-      ? "3. Preserve essential technical terms, constraints, and context; keep enough detail for a correct answer.\n" +
-        "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
-        "5. Rephrase into a direct, answerable question or request. Use multiple sentences when the input requires it.\n"
-      : "3. Preserve essential technical terms. Be ruthless about what is truly essential.\n" +
-        "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
-        "5. Rephrase into a direct, answerable question or request.\n") +
+    "3. Preserve only the technical terms that materially affect the answer.\n" +
+    "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
+    "5. Rephrase into a direct, answerable question or request.\n" +
     `6. ${strategy.scope}\n\n` +
     "${strategy.examples}\n\n" +
     "Return JSON:\n" +
-    (isHigh
-      ? '{"simplified_question": "the clear question with necessary context", '
-      : '{"simplified_question": "the clear concise question", ') +
+    '{"simplified_question": "the clear concise question", ' +
     '"important_symbols": ["terms you preserved"], "active_files": [], "errors": [], "constraints": []}';
 
   const llmOutput = await chat([
