@@ -324,12 +324,12 @@ async function llmSimplifyQuestion(
   text: string,
   level: CompressionLevel,
 ): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
-  const aggressiveness =
+  const lengthRule =
     level === "high"
-      ? "Be very concise — 1-2 sentences max. Drop all context that isn't essential to answer the question."
+      ? "LENGTH: Write exactly 1 sentence. No run-on paragraphs."
       : level === "medium"
-        ? "Be concise — keep the core question and key technical details. 2-3 sentences max."
-        : "Simplify slightly — remove filler/repetition but keep technical context. Keep it short and clear.";
+        ? "LENGTH: Write 1-2 complete sentences (not one long run-on). Second sentence may add key technical context."
+        : "LENGTH: Write 2-3 complete sentences. First sentence = core question. Next sentence(s) = essential technical context the answerer needs (agent roles, stack, constraints). Do NOT cram everything into one sentence.";
 
   const systemPrompt =
     "You are a question simplifier. Your job is to rewrite the user's verbose/messy prompt " +
@@ -341,7 +341,7 @@ async function llmSimplifyQuestion(
     "4. Keep key constraints: 'must', 'should not', 'for an internship demo', deadlines, specific goals.\n" +
     "5. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
     "6. Rephrase into a direct, answerable question or request.\n" +
-    `7. ${aggressiveness}\n\n` +
+    `7. ${lengthRule}\n\n` +
     "IMPORTANT: Look for the ACTUAL question/decision. Signals: 'I'm wondering', 'should I', 'is it better to', " +
     "'how to', 'do you think', question marks (?). If there's a question mark, that's likely the core question.\n\n" +
     "EXAMPLES:\n" +
@@ -349,6 +349,8 @@ async function llmSimplifyQuestion(
     'Output: {"simplified_question": "Do you think it will rain today given the cloudy weather?", ...}\n\n' +
     'Input: "So I was talking with someone and we discussed whether my RF anomaly detection setup should stream raw Sub-GHz packets directly into Node.js or pass through a TinyML classifier on-device, because I originally wanted UART logging into InfluxDB but now I\'m wondering if separating realtime inference, retraining, and vector storage into independent services would reduce latency during burst traffic or if that\'s overengineering for an internship demo."\n' +
     'Output: {"simplified_question": "For an RF anomaly detection setup, should I separate realtime inference, retraining, and vector storage into independent services to reduce latency during burst traffic, or is that overengineering for an internship demo? Context: streaming Sub-GHz packets to Node.js backend vs TinyML classifier on-device, with UART logging into InfluxDB.", ...}\n\n' +
+    'Input: (long ramble about hackathon, 17-page architecture doc, Agent Alpha/Beta/Gamma, vector DB, internship demo)\n' +
+    'Output (low compression — 2-3 sentences): {"simplified_question": "For a machine learning infrastructure internship demo, should I keep a multi-agent design or cut down to one agent? The current design has Agent Alpha for sensor/image parsing, Agent Beta for hallucination checks, and Agent Gamma for embedding compression before vector DB storage. The architecture doc grew to 17 pages but the original goal was a small MVP.", ...}\n\n' +
     "Return JSON:\n" +
     '{"simplified_question": "the clear concise question preserving technical terms", ' +
     '"important_symbols": ["technical terms preserved"], "active_files": [], "errors": [], ' +
