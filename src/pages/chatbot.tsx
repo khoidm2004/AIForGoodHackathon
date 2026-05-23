@@ -1,22 +1,28 @@
+// chatbot.tsx
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, Shield, Lock, Sun, Moon, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 // Sidebar imports
 import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { addAIResponse, finishAIResponse } from "../components/ui/sidebar-prompt";
+import { useTheme } from "../components/ui/theme";
 interface Message {
   id: string;
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
+  privacyMode?: "low" | "medium" | "high";
 }
 
 export default function Chatbot() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [privacyMode, setPrivacyMode] = useState<"low" | "medium" | "high">("medium");
+  const { darkMode, toggleTheme } = useTheme();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -75,6 +81,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     content: input.trim(),
     role: "user",
     timestamp: new Date(),
+    privacyMode: privacyMode,
   };
 
   setMessages((prev) => [...prev, userMessage]);
@@ -118,6 +125,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         <div className="flex flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
+              
               <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
                 <Sparkles className="size-5 text-primary-foreground" />
               </div>
@@ -125,6 +133,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <h1 className="text-lg font-semibold">AI Assistant</h1>
                 <p className="text-sm text-muted-foreground">Always here to help</p>
               </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
+                aria-label="Toggle dark mode"
+              >
+                {darkMode ? (
+                  <Sun className="size-5 text-foreground" />
+                ) : (
+                  <Moon className="size-5 text-foreground" />
+                )}
+              </button>
             </div>
           </header>
 
@@ -138,7 +160,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <p className="text-muted-foreground max-w-md">
                   Ask me anything, and I'll do my best to provide helpful and accurate information.
                 </p>
-                <div className="grid grid-cols-2 gap-3 mt-8 max-w-2xl">
+                <div className="hidden min-[651px]:grid grid-cols-2 gap-3 mt-8 max-w-2xl">
                   {[
                     "Explain quantum computing",
                     "Tips for productivity",
@@ -186,6 +208,18 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
                           {message.content}
                         </p>
+                        {message.role === "user" && message.privacyMode && (
+                          <div className="mt-1 text-[10px] opacity-70 flex items-center gap-1">
+                            {message.privacyMode === "low" && <Info className="size-3" />}
+                            {message.privacyMode === "medium" && <Shield className="size-3" />}
+                            {message.privacyMode === "high" && <Lock className="size-3" />}
+                            <span>
+                              {message.privacyMode === "low" && "Low mode"}
+                              {message.privacyMode === "medium" && "Medium mode"}
+                              {message.privacyMode === "high" && "High mode"}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {message.role === "user" && (
                         <div className="size-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 text-sm font-medium">
@@ -252,7 +286,50 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <Send className="size-5" />
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-3">
+
+              <div className="flex gap-3 mt-2 justify-start">
+                <button
+                  type="button"
+                  onClick={() => setPrivacyMode("low")}
+                  disabled={isTyping}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
+                    privacyMode === "low"
+                      ? "bg-green-500/10 border-green-500 text-green-600 shadow-sm"
+                      : "bg-card border-border text-muted-foreground hover:bg-accent"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Info className="size-3.5" />
+                  Low
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrivacyMode("medium")}
+                  disabled={isTyping}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
+                    privacyMode === "medium"
+                      ? "bg-yellow-500/10 border-yellow-500 text-yellow-600 shadow-sm"
+                      : "bg-card border-border text-muted-foreground hover:bg-accent"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Shield className="size-3.5" />
+                  Medium
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrivacyMode("high")}
+                  disabled={isTyping}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-all flex items-center gap-1.5 ${
+                    privacyMode === "high"
+                      ? "bg-red-500/10 border-red-500 text-red-600 shadow-sm"
+                      : "bg-card border-border text-muted-foreground hover:bg-accent"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Lock className="size-3.5" />
+                  High
+                </button>
+              </div>
+
+              <p className="hidden min-[651px]:text-xs text-muted-foreground text-center mt-3">
                 Press Enter to send, Shift + Enter for new line
               </p>
             </form>

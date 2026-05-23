@@ -1,15 +1,19 @@
-import Chatbot from './pages/chatbot'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Chatbot from './pages/chatbot';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import NotFound from './pages/notfound404';
+import { ThemeProvider } from './components/ui/theme';
 
 function App() {
   return (
-    <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<Chatbot />} />
-          <Route path="/admin" element={<p>Admin page content</p>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
-    </BrowserRouter>
-  )
+      </BrowserRouter>
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;

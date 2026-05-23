@@ -120,3 +120,4 @@ license
 
 # Keep workspace test-related files
 .vscode-test/
+.vercel

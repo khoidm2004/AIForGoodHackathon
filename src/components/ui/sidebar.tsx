@@ -164,8 +164,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { isMobile, state, open, setOpen, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
-
+const { isMobile, state, open, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
   if (collapsible === "none") {
     return (
       <div

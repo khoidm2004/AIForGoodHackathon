@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { User } from "lucide-react";
+// Remove unused User import
 import {
   Sidebar,
   SidebarContent,
@@ -94,7 +94,7 @@ export function AppSidebar() {
             ) : (
               <div className="space-y-4">
                 <AnimatePresence initial={false}>
-                  {responses.map((response, idx) => (
+                  {responses.map((response) => (  // Remove unused 'idx' parameter
                     <motion.div
                       key={response.id}
                       initial={{ opacity: 0, y: 10 }}

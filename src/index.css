@@ -56,16 +56,16 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
-  --secondary: #262626;
+  --secondary: #333333;
   --secondary-foreground: #fafafa;
-  --muted: #262626;
+  --muted: #333333;
   --muted-foreground: #a3a3a3;
-  --accent: #262626;
+  --accent: #333333;
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #262626;
-  --input: #262626;
+  --border: #333333;
+  --input: #333333;
   --input-background: #171717;
   --ring: oklch(0.439 0 0);
   --font-weight-medium: 500;
@@ -184,5 +184,11 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --font-size: 14px;
   }
 }
