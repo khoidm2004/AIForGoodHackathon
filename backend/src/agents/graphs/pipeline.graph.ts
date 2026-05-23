@@ -18,7 +18,7 @@ const graph = new StateGraph(PipelineAnnotation)
   .addConditionalEdges("review", (state) => {
     if (state.reviewPassed) return "output";
     if (state.retryCount < 3) return "increment-retry";
-    return "__end__";
+    return "output";
   })
   .addEdge("increment-retry", "simplify")
   .addEdge("output", "__end__");
