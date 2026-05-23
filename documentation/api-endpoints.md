@@ -126,7 +126,7 @@ Runs the text pipeline: preprocess → simplify → review (with retries) → ou
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `message` | `string` | Yes | — | User text to process. Must be non-empty (`min` length 1). |
-| `simplify` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | How aggressively to simplify. `high` = strong compression (similarity threshold 0.2). `medium` = balanced (0.5). `low` = light compression, preserve more wording (0.85). |
+| `simplify` | `"low"` \| `"medium"` \| `"high"` | No | `"medium"` | How aggressively to simplify. `high` = strong compression (similarity threshold 0.75). `medium` = balanced (0.5). `low` = light compression, preserve more wording (0.15). |
 
 **Example body**
 
