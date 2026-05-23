@@ -7,7 +7,24 @@ export const COMPANY_RE = /\b(company|inc|corp|ltd|llc)\b/i;
 export const LOCATION_RE = /\b(in|at|from)\s+[A-Z][a-zA-Z]+\b/;
 export const NAME_RE = /\b(my name is|i am)\s+[A-Z][a-zA-Z]+\b/i;
 export const REPEATED_WORD_RE = /\b(\w+)(\s+\1)+\b/i;
-export const NON_ASCII_RE = /[^\x00-\x7F]+/;
+// Strip control chars and zero-width chars only — preserve Unicode (Vietnamese, CJK, etc.)
+export const NON_ASCII_RE = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\uFEFF]/g;
+
+// === Vietnamese PII patterns ===
+// Name introduction: "tôi tên là X", "tên tôi là X", "mình tên là X", "anh/chị/em X", "Y, sinh viên..."
+export const NAME_VI_RE =
+  /\b(t[ôo]i\s+t[êe]n\s+l[àa]|t[êe]n\s+t[ôo]i\s+l[àa]|m[ìi]nh\s+t[êe]n\s+l[àa]|t[ôo]i\s+l[àa]|m[ìi]nh\s+l[àa])\s+\p{Lu}[\p{L}\p{M}]+/iu;
+// "Anh/Chị/Em/Bạn/Cô/Chú X" — common addressing form before a name
+export const NAME_VI_TITLE_RE =
+  /\b(anh|ch[ịi]|em|b[ạa]n|c[ôo]|ch[úu]|b[áa]c|d[ìi]|c[ậậ]u|m[ợợ])\s+\p{Lu}[\p{L}\p{M}]+/iu;
+// Age in Vietnamese: "22 tuổi"
+export const AGE_VI_RE = /\b\d{1,3}\s*tu[ổo]i\b/iu;
+// Location prepositions in Vietnamese: "ở/tại/đến từ/từ <ProperNoun>"
+// Captures up to 4 capitalized words to handle "TP.HCM", "Đại học Quốc gia Hà Nội", "Hồ Tây"
+export const LOCATION_VI_RE =
+  /\b(s[ốo]ng\s+(?:ở|t[ạa]i)|đ[ếe]n\s+t[ừu]|đang\s+(?:ở|s[ốo]ng)|ở|t[ạa]i|t[ừu])\s+(?:TP\.?\s*\p{Lu}\p{L}*|\p{Lu}[\p{L}\p{M}]+(?:\s+\p{Lu}[\p{L}\p{M}]+){0,3})/iu;
+// Vietnamese phone: "(số điện thoại|sđt|đt|phone) ..." or 10-11 digits without separators
+export const PHONE_VI_RE = /\b(?:s[ốo]\s*đi[ệe]n\s*tho[ạa]i|sđt|đt|phone)\b\s*[:\-]?\s*[\d\s\-.()]{7,15}/iu;
 
 export const CODE_PATTERN =
   /\b[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\(.*?\)|\b[A-Z][a-zA-Z]*Error\b|\b\w+\.(py|js|ts|jsx|tsx)\b|\b(API|endpoint|handler|route|function|class|def|import|from)\b/i;
