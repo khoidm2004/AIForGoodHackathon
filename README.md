@@ -10,7 +10,9 @@ Build agentic AI solutions that deliver measurable impact for people, planet, an
 
 ## Project Description 🗒️
 
-This project implements a multi-agent system to simplify and exclude redundant data from user input to avoid reverse engineering. The current project mimics an LLM app like ChatGPT and integrates a simplification agent system to answer user questions.
+This project implements a multi-agent pipeline that preprocesses, simplifies, and reviews user prompts before sending them to an LLM—removing redundant detail and sensitive information where possible (data minimization for **Trust & Responsible AI**).
+
+The app mimics a ChatGPT-style experience with configurable privacy levels (low / medium / high). A simplification agent chain produces a minimized prompt and a final answer for the user.
 
 ## Tech Stack 💻
 
