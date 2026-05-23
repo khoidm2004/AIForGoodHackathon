@@ -1,57 +1,32 @@
-```
-npm install --legacy-peer-deps \
-  @emotion/react \
-  @emotion/styled \
-  @mui/icons-material \
-  @mui/material \
-  @popperjs/core \
-  @radix-ui/react-accordion \
-  @radix-ui/react-alert-dialog \
-  @radix-ui/react-aspect-ratio \
-  @radix-ui/react-avatar \
-  @radix-ui/react-checkbox \
-  @radix-ui/react-collapsible \
-  @radix-ui/react-context-menu \
-  @radix-ui/react-dialog \
-  @radix-ui/react-dropdown-menu \
-  @radix-ui/react-hover-card \
-  @radix-ui/react-label \
-  @radix-ui/react-menubar \
-  @radix-ui/react-navigation-menu \
-  @radix-ui/react-popover \
-  @radix-ui/react-progress \
-  @radix-ui/react-radio-group \
-  @radix-ui/react-scroll-area \
-  @radix-ui/react-select \
-  @radix-ui/react-separator \
-  @radix-ui/react-slider \
-  @radix-ui/react-slot \
-  @radix-ui/react-switch \
-  @radix-ui/react-tabs \
-  @radix-ui/react-toggle-group \
-  @radix-ui/react-toggle \
-  @radix-ui/react-tooltip \
-  canvas-confetti \
-  class-variance-authority \
-  clsx \
-  cmdk \
-  date-fns \
-  embla-carousel-react \
-  input-otp \
-  lucide-react \
-  motion \
-  next-themes \
-  react-day-picker \
-  react-dnd \
-  react-dnd-html5-backend \
-  react-hook-form \
-  react-popper \
-  react-resizable-panels \
-  react-responsive-masonry \
-  react-slick \
-  recharts \
-  sonner \
-  tailwind-merge \
-  tw-animate-css \
-  vaul
-```
+# AI For Good Hackathon
+
+## Challenge 🎯
+
+Build agentic AI solutions that deliver measurable impact for people, planet, and trust in at least one area.
+
+- **Impact:** Increase access, reduce friction, and improve outcomes for end beneficiaries.
+- **Sustainability:** Measure, reduce, or optimize environmental and operational footprint.
+- **Trust & Responsible AI:** Build with safety-by-design so the solution can be used responsibly in real settings.
+
+## Project Description 🗒️
+
+This project implements a multi-agent system to simplify and exclude redundant data from user input to avoid reverse engineering. The current project mimics an LLM app like ChatGPT and integrates a simplification agent system to answer user questions.
+
+## Tech Stack 💻
+
+- **Design:** Figma
+- **Frontend:** Vite + React + Tailwind + Shadcn UI
+- **Backend:** Node.js + TypeScript + Express + Docker
+- **AI/LLM:** LangGraph + Groq + OpenRouter + HuggingFace
+- **Deploy:** Vercel + Render
+
+## Team Members 👷
+
+- [Khoi Do](https://github.com/khoidm2004): Lead Developer, Backend Developer, AI Developer
+- [Dung Nguyen](https://github.com/pjazzy314159): Algorithms Developer, AI Developer, Backend Developer
+- [Nhi Nguyen](https://github.com/nhingnguyen): Designer, Frontend Developer
+- [Khoa Nguyen](https://github.com/Hkhoa25): Designer, Frontend Developer
+
+## Project Architecture 🖥️
+
+![Project architecture diagram](public/image.png)
