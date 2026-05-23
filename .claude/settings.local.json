@@ -5,19 +5,9 @@
       "mcp__code-review-graph__detect_changes_tool",
       "Bash(npm install *)",
       "mcp__code-review-graph__get_review_context_tool",
-      "mcp__code-review-graph__get_impact_radius_tool",
-      "mcp__code-review-graph__list_graph_stats_tool",
-      "mcp__code-review-graph__get_architecture_overview_tool",
-      "mcp__code-review-graph__semantic_search_nodes_tool",
-      "mcp__code-review-graph__list_flows_tool",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
-      "Bash(stream\")",
-      "Bash(npm run *)",
-      "Bash(npx eslint *)"
+      "mcp__code-review-graph__get_impact_radius_tool"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "code-review-graph"
-  ]
+  "enabledMcpjsonServers": ["code-review-graph"]
 }

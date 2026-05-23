@@ -1,14 +1,10 @@
 import { pipelineGraph } from "../agents/graphs/pipeline.graph";
 import { PipelineInput, PipelineOutput } from "../types";
 
-export async function runPipeline(
-  input: PipelineInput,
-  onChunk?: (chunk: string) => void,
-): Promise<PipelineOutput> {
+export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
   const graphResult = await pipelineGraph.invoke({
     originalMessage: input.message,
     compressionLevel: input.simplify ?? "medium",
-    onChunk,
   });
 
   let parsedResult: Record<string, unknown>;
