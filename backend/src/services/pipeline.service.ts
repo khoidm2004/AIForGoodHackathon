@@ -2,12 +2,26 @@ import { pipelineGraph } from "../agents/graphs/pipeline.graph";
 import { PipelineInput, PipelineOutput } from "../types";
 
 export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
-  const result = await pipelineGraph.invoke({
+  const graphResult = await pipelineGraph.invoke({
     originalMessage: input.message,
     shouldSimplify: input.simplify ?? false,
   });
+
+  let parsedResult: Record<string, unknown>;
+  try {
+    parsedResult = JSON.parse(graphResult.finalOutput) as Record<string, unknown>;
+  } catch {
+    parsedResult = {
+      status: "failed",
+      attempt: 0,
+      question: graphResult.simplifiedMessage || input.message,
+      answer: null,
+      review: { reason: "Could not parse pipeline output JSON" },
+    };
+  }
+
   return {
-    result: result.finalOutput,
+    result: parsedResult,
     steps: ["preprocess", "simplify", "review", "output"],
   };
 }

@@ -49,7 +49,7 @@ export function addAttemptToHistory(
     passed: reviewResult.approved,
     prompt,
     reason: reviewResult.reason,
-    similarityScore: reviewResult.similarityScore,
+    similarityScore: Number(reviewResult.similarityScore.toFixed(3)),
     missingItems: reviewResult.missingItems.length > 0 ? reviewResult.missingItems : undefined,
   });
 }
