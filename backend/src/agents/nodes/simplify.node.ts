@@ -55,9 +55,9 @@ export function addAttemptToHistory(
 }
 
 const SIMILARITY_THRESHOLDS: Record<string, number> = {
-  low: 0.2,
+  low: 0.85,
   medium: 0.5,
-  high: 0.85,
+  high: 0.2,
 };
 
 export function getSimilarityThreshold(level: string, retryCount: number): number {
