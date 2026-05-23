@@ -189,13 +189,40 @@ Mid-stream errors (after headers are flushed) are delivered as an `error` SSE ev
 
 Invalid request bodies (for example missing or empty `message`) currently surface as `500` with a Zod validation message in `error`. The frontend should validate `message` client-side before calling the API.
 
+#### How chunk accumulation works
+
+The stream sends tokens one at a time. To reconstruct the full LLM output you must **concatenate every `chunk` event's `content` in arrival order**:
+
+```
+chunk → "The "
+chunk → "capital "
+chunk → "of "
+chunk → "France "
+chunk → "is "
+chunk → "Paris."
+result → { success: true, data: { result: "...", steps: [...] } }
+[DONE]
+```
+
+Accumulated text after all chunks: `"The capital of France is Paris."`
+
+The `result` event carries the authoritative final output from the full pipeline (including the output agent's formatting). Use chunk accumulation only to display a live preview while the stream is in progress — once the `result` event arrives, replace the live preview with `data.result`.
+
 #### Examples
 
-**fetch with EventSource-style reading**
+**Streaming helper (`runPipelineStream`)**
 
 ```ts
+// lib/api.ts
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+/**
+ * Calls /api/pipeline/run and streams the response.
+ *
+ * - onChunk is called for every token as it arrives.
+ *   Concatenate the values yourself to build the live preview string.
+ * - Resolves with the final { result, steps } from the "result" SSE event.
+ */
 export async function runPipelineStream(
   message: string,
   simplify: "low" | "medium" | "high" = "medium",
@@ -207,9 +234,10 @@ export async function runPipelineStream(
     body: JSON.stringify({ message, simplify }),
   });
 
+  // Pre-stream HTTP errors arrive as regular JSON responses.
   if (res.status === 429) {
-    const { error } = await res.json();
-    throw new Error(error ?? "Rate limited");
+    const body = await res.json();
+    throw new Error(body.error ?? "Rate limited");
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -218,33 +246,54 @@ export async function runPipelineStream(
 
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
+
+  // `buffer` holds bytes received but not yet split into complete lines.
   let buffer = "";
+  // `currentEvent` tracks the most recent "event:" line so the following
+  // "data:" line can be dispatched to the right handler.
+  let currentEvent = "";
   let finalData: { result: string; steps: string[] } | null = null;
 
-  while (true) {
+  outer: while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
+    // Append decoded bytes to the rolling buffer.
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop()!; // keep incomplete last line
 
-    let currentEvent = "";
+    // SSE messages are newline-delimited. Split on every \n and keep the
+    // last (possibly incomplete) segment in the buffer for the next read.
+    const lines = buffer.split("\n");
+    buffer = lines.pop()!;
+
     for (const line of lines) {
       if (line.startsWith("event:")) {
+        // Store the event name; the data line arrives next.
         currentEvent = line.slice(6).trim();
+
       } else if (line.startsWith("data:")) {
         const raw = line.slice(5).trim();
-        if (raw === "[DONE]") break;
+
+        // "[DONE]" is a literal terminator, not JSON — exit immediately.
+        if (raw === "[DONE]") break outer;
 
         const parsed = JSON.parse(raw);
+
         if (currentEvent === "result") {
+          // Final authoritative output — pipeline finished successfully.
           finalData = parsed.data;
+
         } else if (currentEvent === "error") {
+          // Mid-stream error sent after headers were already flushed.
           throw new Error(parsed.error ?? "Stream error");
+
         } else if (parsed.type === "chunk") {
+          // LLM token — forward to caller for live concatenation.
           onChunk(parsed.content);
         }
+
+        // Reset so an event name is never accidentally reused for the
+        // next data line.
         currentEvent = "";
       }
     }
@@ -255,19 +304,82 @@ export async function runPipelineStream(
 }
 ```
 
-**React hook example**
+**React hook — live typing effect**
 
-```ts
-const [output, setOutput] = useState("");
-const [steps, setSteps] = useState<string[]>([]);
+```tsx
+// hooks/usePipeline.ts
+import { useState, useCallback } from "react";
+import { runPipelineStream } from "../lib/api";
 
-async function submit(message: string) {
-  setOutput("");
-  await runPipelineStream(
-    message,
-    "medium",
-    (token) => setOutput((prev) => prev + token),
-  ).then(({ steps }) => setSteps(steps));
+export function usePipeline() {
+  const [liveText, setLiveText] = useState("");   // built token-by-token
+  const [finalResult, setFinalResult] = useState(""); // from "result" event
+  const [steps, setSteps] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = useCallback(
+    async (message: string, simplify: "low" | "medium" | "high" = "medium") => {
+      setLoading(true);
+      setError(null);
+      setLiveText("");     // clear previous live preview
+      setFinalResult("");
+
+      try {
+        const result = await runPipelineStream(
+          message,
+          simplify,
+          // Append each arriving token to liveText so the UI updates in real-time.
+          (token) => setLiveText((prev) => prev + token),
+        );
+        // Once the result event arrives, switch from live preview to final output.
+        setFinalResult(result.result);
+        setSteps(result.steps);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  return { liveText, finalResult, steps, loading, error, run };
+}
+```
+
+**Component wiring**
+
+```tsx
+// components/PipelineChat.tsx
+import { usePipeline } from "../hooks/usePipeline";
+
+export function PipelineChat() {
+  const { liveText, finalResult, steps, loading, error, run } = usePipeline();
+
+  return (
+    <div>
+      <button onClick={() => run("Explain quantum entanglement simply")} disabled={loading}>
+        {loading ? "Thinking…" : "Ask"}
+      </button>
+
+      {/* Show live token stream while the pipeline is running */}
+      {loading && liveText && (
+        <pre style={{ opacity: 0.6 }}>{liveText}<span className="cursor">▍</span></pre>
+      )}
+
+      {/* Replace with final formatted result once the stream completes */}
+      {!loading && finalResult && <pre>{finalResult}</pre>}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {steps.length > 0 && (
+        <p style={{ fontSize: "0.75rem", color: "gray" }}>
+          Steps: {steps.join(" → ")}
+        </p>
+      )}
+    </div>
+  );
 }
 ```
 
