@@ -57,7 +57,7 @@ const LEVEL_CONFIG: Record<
 > = {
   low: { svtThreshold: 0.16, topKRatio: 0.92, dedupThreshold: 0.97, useLlm: false },
   medium: { svtThreshold: 0.38, topKRatio: 0.68, dedupThreshold: 0.86, useLlm: false },
-  high: { svtThreshold: 0.58, topKRatio: 0.38, dedupThreshold: 0.72, useLlm: true },
+  high: { svtThreshold: 0.42, topKRatio: 0.58, dedupThreshold: 0.84, useLlm: true },
 };
 
 function containsPii(text: string): boolean {
@@ -346,24 +346,23 @@ async function llmSimplifyQuestion(
   text: string,
   level: CompressionLevel,
 ): Promise<{ sanitized: string; structured: Record<string, unknown> }> {
-  let strategy: { length: string; scope: string; examples: string };
+  let strategy: { scope: string; examples: string };
 
   if (level === "high") {
     strategy = {
-      length: "LENGTH: Exactly 1 sentence. Strict — no more.",
       scope:
-        "SCOPE: Extract ONLY the core question. Drop ALL context, technical detail, and extra terms. " +
-        "The result must be answerable standalone without any surrounding context.",
+        "SCOPE: Lead with the core question, then keep technical details, constraints, and named components " +
+        "that affect the answer. Use as many sentences as needed — do not over-compress. " +
+        "Drop only filler, personal info, and unrelated backstory.",
       examples:
         'EXAMPLES:\n' +
         'Input: "Hi I am John from Helsinki. The weather is cloudy today. Do you think it is gonna rain today?"\n' +
-        'Output: {"simplified_question": "Will it rain today?", ...}\n\n' +
+        'Output: {"simplified_question": "Will it rain today? The weather is cloudy in Helsinki.", ...}\n\n' +
         'Input: "During the hackathon I built Agent Alpha for parsing and Agent Beta for hallucination checks; my architecture doc is 17 pages. Should I cut down to one agent for the demo?"\n' +
-        'Output: {"simplified_question": "Should I cut down to one agent for the demo?", ...}',
+        'Output: {"simplified_question": "Should I cut the multi-agent design to one agent for a machine learning infrastructure internship demo? The current architecture has Agent Alpha for sensor/image parsing, Agent Beta for hallucination checks and confidence thresholds, and the architecture doc grew to 17 pages but the original goal was a small MVP.", ...}',
     };
   } else if (level === "medium") {
     strategy = {
-      length: "LENGTH: 1-2 sentences. Second sentence may add the most critical technical term or constraint.",
       scope:
         "SCOPE: Keep the core question + 1-2 key technical terms the answerer needs. " +
         "Drop filler, backstory, and any detail that isn't essential to answer correctly. " +
@@ -377,9 +376,6 @@ async function llmSimplifyQuestion(
     };
   } else {
     strategy = {
-      length:
-        "LENGTH: 2-3 sentences. First sentence = core question. Remaining sentence(s) = enough technical " +
-        "context so the answerer can respond correctly without seeing the original prompt.",
       scope:
         "SCOPE: Keep the core question + important technical context: agent roles, stack components, " +
         "constraints, specific terms. Preserve ALL technical terms that matter to the answer. " +
@@ -393,20 +389,28 @@ async function llmSimplifyQuestion(
     };
   }
 
+  const isHigh = level === "high";
   const systemPrompt =
     "You are a question simplifier. Your job is to rewrite the user's verbose/messy prompt " +
-    "into a clear, concise QUESTION that another AI agent can answer directly.\n\n" +
+    (isHigh
+      ? "into a clear QUESTION with the context needed to answer it correctly.\n\n"
+      : "into a clear, concise QUESTION that another AI agent can answer directly.\n\n") +
     "Rules:\n" +
     "1. Read the ENTIRE input carefully. The real question is often at the END, not the beginning.\n" +
     "2. The user may ramble — ignore tangents, stories, introductions. Focus on what they ACTUALLY need answered.\n" +
-    "3. Preserve essential technical terms. Be ruthless about what is truly essential.\n" +
-    "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
-    "5. Rephrase into a direct, answerable question or request.\n" +
-    `6. ${strategy.length}\n` +
-    `7. ${strategy.scope}\n\n` +
+    (isHigh
+      ? "3. Preserve essential technical terms, constraints, and context; keep enough detail for a correct answer.\n" +
+        "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
+        "5. Rephrase into a direct, answerable question or request. Use multiple sentences when the input requires it.\n"
+      : "3. Preserve essential technical terms. Be ruthless about what is truly essential.\n" +
+        "4. Remove: personal names, company names, locations, filler words, unrelated backstory.\n" +
+        "5. Rephrase into a direct, answerable question or request.\n") +
+    `6. ${strategy.scope}\n\n` +
     "${strategy.examples}\n\n" +
     "Return JSON:\n" +
-    '{"simplified_question": "the clear concise question", ' +
+    (isHigh
+      ? '{"simplified_question": "the clear question with necessary context", '
+      : '{"simplified_question": "the clear concise question", ') +
     '"important_symbols": ["terms you preserved"], "active_files": [], "errors": [], "constraints": []}';
 
   const llmOutput = await chat([
