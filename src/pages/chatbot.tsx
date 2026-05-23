@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 // Sidebar imports
 import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
-
+import { addAIResponse, finishAIResponse } from "../components/ui/sidebar-prompt";
 interface Message {
   id: string;
   content: string;
@@ -27,8 +27,6 @@ export default function Chatbot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-
-  // Auto‑resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -53,52 +51,58 @@ export default function Chatbot() {
             }
             return newMessages;
           });
+          
+          // This adds/updates the current AI response in the sidebar
+          addAIResponse(currentText);
+
           wordIndex++;
         } else {
           clearInterval(intervalId);
+          // Mark the AI response as complete
+          finishAIResponse();
           resolve();
         }
       }, 50);
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isTyping) return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!input.trim() || isTyping) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: input.trim(),
-      role: "user",
+  const userMessage: Message = {
+    id: Date.now().toString(),
+    content: input.trim(),
+    role: "user",
+    timestamp: new Date(),
+  };
+
+  setMessages((prev) => [...prev, userMessage]);
+  setInput("");
+  setIsTyping(true);
+
+  setTimeout(async () => {
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: "",
+      role: "assistant",
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsTyping(true);
+    setMessages((prev) => [...prev, assistantMessage]);
 
-    setTimeout(async () => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "",
-        role: "assistant",
-        timestamp: new Date(),
-      };
+    const responses = [
+      "That's a great question! Let me help you with that. Based on what you've shared, I'd recommend exploring a few different approaches to find what works best for your specific situation.",
+      "I understand what you're asking. This is definitely something worth exploring in more detail. Let me break this down into a few key points that might be helpful for you.",
+      "Thanks for sharing that with me. I can see why you'd be curious about this. Here's what I know that might be relevant to your question.",
+      "Interesting! This touches on a few different aspects. Let me provide some insights that could help guide you in the right direction.",
+    ];
 
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      const responses = [
-        "That's a great question! Let me help you with that. Based on what you've shared, I'd recommend exploring a few different approaches to find what works best for your specific situation.",
-        "I understand what you're asking. This is definitely something worth exploring in more detail. Let me break this down into a few key points that might be helpful for you.",
-        "Thanks for sharing that with me. I can see why you'd be curious about this. Here's what I know that might be relevant to your question.",
-        "Interesting! This touches on a few different aspects. Let me provide some insights that could help guide you in the right direction.",
-      ];
-
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      await simulateTyping(randomResponse);
-      setIsTyping(false);
-    }, 800);
-  };
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    await simulateTyping(randomResponse);
+    setIsTyping(false);
+  }, 800);
+};
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -108,11 +112,11 @@ export default function Chatbot() {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card">
+          <header className="sticky top-0 z-10 flex items-center justify-between px-8 py-5 border-b border-border bg-card rounded-b-lg rounded-t-lg">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
                 <Sparkles className="size-5 text-primary-foreground" />
@@ -122,7 +126,6 @@ export default function Chatbot() {
                 <p className="text-sm text-muted-foreground">Always here to help</p>
               </div>
             </div>
-            <SidebarTrigger />
           </header>
 
           <div className="flex-1 overflow-y-auto px-8 py-6">
@@ -228,9 +231,9 @@ export default function Chatbot() {
             )}
           </div>
 
-          <div className="px-8 py-6 border-t border-border bg-card">
+          <div className="px-8 py-6 border-t border-border bg-card rounded-t-lg rounded-b-lg">
             <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-              <div className="relative flex items-center gap-3 bg-input-background border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20 transition-shadow">
+              <div className="relative flex items-center gap-6 bg-input-background border border-border rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20 transition-shadow">
                 <textarea
                   ref={textareaRef}
                   value={input}

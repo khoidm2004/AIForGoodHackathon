@@ -4,7 +4,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useIsMobile } from "./use-mobile";
 import { cn } from "./utils";
@@ -28,8 +28,8 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_WIDTH_MOBILE = "18rem";
+const SIDEBAR_WIDTH = "20rem";
+const SIDEBAR_WIDTH_MOBILE = "20rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -164,7 +164,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, open, setOpen, openMobile, setOpenMobile, toggleSidebar } = useSidebar();
 
   if (collapsible === "none") {
     return (
@@ -208,7 +208,7 @@ function Sidebar({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className="group peer text-sidebar-foreground hidden md:block relative"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -245,9 +245,32 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
+          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm relative"
         >
           {children}
+          
+          {/* Toggle button positioned at the middle of the right edge */}
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 z-20",
+              "flex items-center justify-center",
+              "size-8 rounded-full bg-primary text-primary-foreground",
+              "shadow-lg shadow-primary/20 hover:scale-110 transition-all duration-200",
+              "cursor-pointer hover:bg-primary/90",
+              "focus:outline-none focus:ring-2 focus:ring-primary/20",
+              side === "left" 
+                ? "-right-4" 
+                : "-left-4"
+            )}
+            aria-label="Toggle Sidebar"
+          >
+            {side === "left" ? (
+              open ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />
+            ) : (
+              open ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -274,7 +297,6 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -406,7 +428,7 @@ function SidebarGroupLabel({
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
-        "text-sidebar-foreground/70 ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        "text-sidebar-foreground/70 ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
         className,
       )}
