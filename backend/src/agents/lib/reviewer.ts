@@ -388,6 +388,22 @@ export async function reviewAgent3(
     }
   }
 
+  // Skip expensive LLM review when lexical similarity is clearly good enough.
+  // effectiveMin is the pass/fail cutoff; sim well above it means the content
+  // is preserved — no need for a second LLM call to confirm the obvious.
+  const skipLlmThreshold = Math.max(effectiveMin * 1.3, effectiveMin + 0.1);
+  if (sim >= skipLlmThreshold) {
+    return {
+      approved: true,
+      confidence: 0.85,
+      similarityScore: sim,
+      checks: { similarity_threshold: true, skip_llm: true },
+      missingItems: [],
+      reason: `Similarity ${sim.toFixed(3)} well above threshold ${effectiveMin} — skipped LLM review`,
+      suggestions: [],
+    };
+  }
+
   if (useLlm) {
     const llmResult = await llmReview(original, sanitized, sim, agent2Meta);
 
