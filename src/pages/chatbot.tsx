@@ -183,26 +183,51 @@ export default function Chatbot() {
                   <Sparkles className="size-10 text-primary" />
                 </div>
                 <h2 className="text-2xl font-semibold mb-3">How can I help you today?</h2>
-                <p className="text-muted-foreground max-w-md">
-                  Ask me anything, and I'll do my best to provide helpful and accurate information.
-                </p>
-                <div className="hidden min-[651px]:grid grid-cols-2 gap-3 mt-8 max-w-2xl">
-                  {[
-                    "Explain quantum computing",
-                    "Tips for productivity",
-                    "Recipe for pasta carbonara",
-                    "Learn a new language",
-                  ].map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setInput(suggestion)}
-                      className="px-4 py-3 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm text-left group"
-                    >
-                      <span className="text-foreground group-hover:text-accent-foreground">
-                        {suggestion}
-                      </span>
-                    </button>
-                  ))}
+                          
+                {/* How It Works - placed above the three privacy cards */}
+                <div className="max-w-3xl mx-auto mt-12">
+                  <div className="px-5 py-3 rounded-xl border border-primary/30 bg-primary/5 text-sm text-center">
+                    <span className="font-semibold text-primary text-base">⚙️ How It Works:</span>{' '}
+                    <span className="text-muted-foreground text-base">
+                      Privacy level controls how much of your prompt the AI can access
+                    </span>
+                  </div>
+                </div>
+
+                {/* Three privacy explanations in a horizontal row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl mx-auto mt-6">
+                  {/* Low Privacy */}
+                  <div className="px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/10 text-sm text-center">
+                    <div className="font-semibold text-foreground text-lg flex items-center justify-center gap-2">
+                      <Info className="size-4 text-green-600 dark:text-green-400" />
+                      Low Privacy
+                    </div>
+                    <div className="text-muted-foreground text-sm mt-1">
+                      AI sees full prompt - higher risk of reverse engineering
+                    </div>
+                  </div>
+
+                  {/* Medium Privacy */}
+                  <div className="px-4 py-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-sm text-center">
+                    <div className="font-semibold text-foreground text-lg flex items-center justify-center gap-2">
+                      <Shield className="size-4 text-yellow-600 dark:text-yellow-400" />
+                      Medium Privacy
+                    </div>
+                    <div className="text-muted-foreground text-sm mt-1">
+                      AI sees moderate input - balanced filtering of sensitive data
+                    </div>
+                  </div>
+
+                  {/* High Privacy */}
+                  <div className="px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10 text-sm text-center">
+                    <div className="font-semibold text-foreground text-lg flex items-center justify-center gap-2">
+                      <Lock className="size-4 text-red-600 dark:text-red-400" />
+                      High Privacy
+                    </div>
+                    <div className="text-muted-foreground text-sm mt-1">
+                      AI sees minimal input - aggressive filtering of critical data
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
