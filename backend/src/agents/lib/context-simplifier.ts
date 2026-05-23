@@ -5,6 +5,7 @@
 import { chat } from "./llm-chat";
 import {
   AGE_RE,
+  AGE_VI_RE,
   CODE_PATTERN,
   COMPANY_RE,
   EMAIL_RE,
@@ -12,9 +13,13 @@ import {
   FILENAME_PATTERN,
   FILLERS,
   LOCATION_RE,
+  LOCATION_VI_RE,
   NAME_RE,
+  NAME_VI_RE,
+  NAME_VI_TITLE_RE,
   NON_ASCII_RE,
   PHONE_RE,
+  PHONE_VI_RE,
   QUESTION_PATTERN,
   REPEATED_WORD_RE,
   STACK_TRACE_PATTERN,
@@ -56,7 +61,18 @@ const LEVEL_CONFIG: Record<
 };
 
 function containsPii(text: string): boolean {
-  return [EMAIL_RE, PHONE_RE, AGE_RE, NAME_RE, LOCATION_RE].some((p) => reTest(p, text));
+  return [
+    EMAIL_RE,
+    PHONE_RE,
+    PHONE_VI_RE,
+    AGE_RE,
+    AGE_VI_RE,
+    NAME_RE,
+    NAME_VI_RE,
+    NAME_VI_TITLE_RE,
+    LOCATION_RE,
+    LOCATION_VI_RE,
+  ].some((p) => reTest(p, text));
 }
 
 function isFillerClause(text: string): boolean {
@@ -139,15 +155,21 @@ function maskPii(text: string): { text: string; tags: string[] } {
 
   let output = text;
   output = sub(EMAIL_RE, "EMAIL", output);
+  output = sub(PHONE_VI_RE, "PHONE", output);
   output = sub(PHONE_RE, "PHONE", output);
+  output = sub(AGE_VI_RE, "AGE", output);
   output = sub(AGE_RE, "AGE", output);
+  output = sub(NAME_VI_RE, "PERSON", output);
+  output = sub(NAME_VI_TITLE_RE, "PERSON", output);
   output = sub(NAME_RE, "PERSON", output);
+  output = sub(LOCATION_VI_RE, "LOCATION", output);
   output = sub(LOCATION_RE, "LOCATION", output);
   output = sub(COMPANY_RE, "COMPANY", output);
   return { text: output, tags: [...new Set(tags)].sort() };
 }
 
 function prefilter(text: string): { text: string; piiTags: string[] } {
+  // Strip control / zero-width chars only — preserve Unicode (Vietnamese, etc.)
   let output = text.replace(NON_ASCII_RE, "");
   output = output.replace(REPEATED_WORD_RE, "$1");
   output = output.replace(/\s+/g, " ").trim();
