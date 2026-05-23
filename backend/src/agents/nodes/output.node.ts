@@ -5,8 +5,8 @@ import { getRetryHistory, type RetryAttempt } from "./simplify.node";
 
 interface FormattedOutput {
   attempt: number;
-  approvedQuestion?: string;
-  rejectedQuestion?: string;
+  approvedSimplifiedMessage?: string;
+  rejectedSimplifiedMessage?: string;
   review?: {
     similarityScore?: number;
     reason?: string;
@@ -31,7 +31,7 @@ function formatRetryHistory(history: RetryAttempt[]): FormattedOutput {
     const lastAttempt = history[history.length - 1]!;
     return {
       attempt: lastAttempt.attempt,
-      rejectedQuestion: lastAttempt.prompt,
+      rejectedSimplifiedMessage: lastAttempt.prompt,
       review: {
         similarityScore: formatSimilarityScore(lastAttempt.similarityScore),
         reason: lastAttempt.reason,
@@ -43,7 +43,7 @@ function formatRetryHistory(history: RetryAttempt[]): FormattedOutput {
   if (!failedAttempt) {
     return {
       attempt: successAttempt.attempt,
-      approvedQuestion: successAttempt.prompt,
+      approvedSimplifiedMessage: successAttempt.prompt,
       review: {
         similarityScore: formatSimilarityScore(successAttempt.similarityScore),
       },
@@ -52,8 +52,8 @@ function formatRetryHistory(history: RetryAttempt[]): FormattedOutput {
 
   return {
     attempt: successAttempt.attempt,
-    rejectedQuestion: failedAttempt.prompt,
-    approvedQuestion: successAttempt.prompt,
+    rejectedSimplifiedMessage: failedAttempt.prompt,
+    approvedSimplifiedMessage: successAttempt.prompt,
     review: {
       similarityScore: formatSimilarityScore(successAttempt.similarityScore),
       reason: failedAttempt.reason,
@@ -118,21 +118,21 @@ export async function outputNode(state: PipelineState): Promise<Partial<Pipeline
     llmAnswer = extractPlainAnswer(raw);
   }
 
-  const question =
-    formattedResult.approvedQuestion ??
-    formattedResult.rejectedQuestion ??
+  const simplifiedMessage =
+    formattedResult.approvedSimplifiedMessage ??
+    formattedResult.rejectedSimplifiedMessage ??
     state.simplifiedMessage;
 
   const finalOutputObj: Record<string, unknown> = {
     status: state.reviewPassed ? "approved" : "failed",
     attempt: formattedResult.attempt,
-    question,
+    simplifiedMessage,
     answer: llmAnswer || null,
     review: formattedResult.review,
   };
 
-  if (formattedResult.rejectedQuestion) {
-    finalOutputObj.previousRejectedQuestion = formattedResult.rejectedQuestion;
+  if (formattedResult.rejectedSimplifiedMessage) {
+    finalOutputObj.previousRejectedSimplifiedMessage = formattedResult.rejectedSimplifiedMessage;
   }
 
   const finalOutput = JSON.stringify(finalOutputObj, null, 2);
