@@ -72,3 +72,75 @@ export async function openRouterChatFromLangChain(
   }));
   return openRouterChat(agent, plain);
 }
+
+/**
+ * Stream a chat completion from OpenRouter, yielding text chunks incrementally.
+ * Uses the OpenAI-compatible SSE streaming protocol.
+ */
+export async function openRouterChatStream(
+  agent: OpenRouterModel,
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  const { apiKey, model } = getConfig(agent);
+
+  const body = JSON.stringify({
+    model,
+    messages,
+    temperature: 0,
+    stream: true,
+  });
+
+  const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OpenRouter API error ${response.status}: ${text.slice(0, 200)}`);
+  }
+
+  if (!response.body) {
+    throw new Error("OpenRouter stream: no response body");
+  }
+
+  const decoder = new TextDecoder();
+  let fullText = "";
+  let buffer = "";
+
+  // node-fetch / native fetch both expose body as a ReadableStream or Node.js Readable
+  const reader = response.body as unknown as AsyncIterable<Uint8Array>;
+  for await (const rawChunk of reader) {
+    buffer += decoder.decode(rawChunk, { stream: true });
+    const lines = buffer.split("\n");
+    // Keep the last (potentially incomplete) line in buffer
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === "[DONE]") continue;
+
+      let parsed: { choices?: Array<{ delta?: { content?: string | null } }> };
+      try {
+        parsed = JSON.parse(payload) as typeof parsed;
+      } catch {
+        continue;
+      }
+
+      const content = parsed.choices?.[0]?.delta?.content;
+      if (content) {
+        fullText += content;
+        onChunk(content);
+      }
+    }
+  }
+
+  return fullText;
+}
