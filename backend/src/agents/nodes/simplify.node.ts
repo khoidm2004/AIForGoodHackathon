@@ -110,7 +110,13 @@ export async function simplifyNode(state: PipelineState): Promise<Partial<Pipeli
   const compressionLevel = levels[Math.min(state.retryCount, 2)]!;
 
   const threshold = getSimilarityThreshold(state.compressionLevel, state.retryCount);
-  const result = await simplifyContext(state.preprocessedMessage, compressionLevel, threshold);
+  const result = await simplifyContext(
+    state.preprocessedMessage,
+    compressionLevel,
+    threshold,
+    "",
+    state.onChunk,
+  );
   lastAgent2Result = result;
 
   return { simplifiedMessage: result.sanitizedPrompt || state.preprocessedMessage };

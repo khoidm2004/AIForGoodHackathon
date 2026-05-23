@@ -114,12 +114,15 @@ const body = await res.json();
 
 Runs the text pipeline: preprocess → simplify → review (with retries) → output. This is the main endpoint for sending user messages and receiving the processed result.
 
+> **This endpoint now streams via Server-Sent Events (SSE).** The response is `text/event-stream`, not JSON. LLM tokens arrive incrementally as `chunk` events; the final result is delivered as a `result` event. See the [SSE event reference](#sse-event-reference) and [examples](#examples-1) below.
+
 | | |
 |---|---|
 | **Method** | `POST` |
 | **Path** | `/api/pipeline/run` |
 | **Auth** | Placeholder middleware (none required today) |
 | **Rate limit** | Yes — **100 requests per 15 minutes** per client IP |
+| **Response type** | `text/event-stream` (SSE) |
 
 #### Request body
 
@@ -137,27 +140,36 @@ Runs the text pipeline: preprocess → simplify → review (with retries) → ou
 }
 ```
 
-#### Success response `200`
+#### SSE event reference
 
-```json
-{
-  "success": true,
-  "data": {
-    "result": "Answer: ...\nSimplified Context: ...",
-    "steps": ["preprocess", "simplify", "review", "output"]
-  }
-}
+The response is a stream of Server-Sent Events. Each event follows the standard SSE wire format:
+
 ```
+event: <event-name>\n
+data: <JSON-string>\n
+\n
+```
+
+The final message is always a bare `data: [DONE]` line that signals the stream has ended.
+
+| Event | When | Data shape | Description |
+|-------|------|------------|-------------|
+| *(unnamed)* | During LLM generation | `{ "type": "chunk", "content": "<token>" }` | One or more tokens from the LLM. Accumulate `content` values in order to build the full response text. |
+| `result` | After pipeline completes | `{ "success": true, "data": { "result": "...", "steps": [...] } }` | Final pipeline output. Same shape as the old JSON response. |
+| `error` | On mid-stream failure | `{ "success": false, "error": "<message>" }` | Sent only if an error occurs after headers are flushed. |
+| *(unnamed)* | Always last | `[DONE]` *(literal string, not JSON)* | Stream terminator. Close the connection after receiving this. |
+
+**`result` event data fields**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `data.result` | `string` | Final pipeline output. After a successful review, this is produced by the output step (Groq). Format is typically `Answer: ...` and `Simplified Context: ...` lines. |
-| `data.steps` | `string[]` | Pipeline stages that were part of this run. Useful for debugging or UI step indicators. |
+| `data.result` | `string` | Final pipeline output. Format is typically `Answer: ...` and `Simplified Context: ...` lines. |
+| `data.steps` | `string[]` | Pipeline stages that ran. Useful for debugging or UI step indicators. |
 
 **Pipeline behavior (for UI copy / loading states)**
 
 1. **preprocess** — Fixes typos and grammar.
-2. **simplify** — Optional simplification when `simplify` is `true`.
+2. **simplify** — Simplification stage; streams tokens as they arrive.
 3. **review** — Validates output; on failure, simplify may retry up to 3 times.
 4. **output** — Only runs when review passes; builds the final `result` string.
 
@@ -165,22 +177,30 @@ If review fails after retries, the graph may end without an output step; `result
 
 #### Error responses
 
+Pre-stream errors (before headers are flushed) still use the standard HTTP + JSON envelope:
+
 | Status | When | Body shape |
 |--------|------|------------|
 | `400` | Invalid JSON body | Express parser error (may not use `success` envelope) |
 | `429` | Rate limit exceeded | `{ "error": "Too many requests, please try again later." }` |
-| `500` | Validation failure, pipeline error, or unhandled exception | `{ "success": false, "error": "<message>" }` |
+| `500` | Validation failure or unhandled exception before stream starts | `{ "success": false, "error": "<message>" }` |
+
+Mid-stream errors (after headers are flushed) are delivered as an `error` SSE event followed by `[DONE]`.
 
 Invalid request bodies (for example missing or empty `message`) currently surface as `500` with a Zod validation message in `error`. The frontend should validate `message` client-side before calling the API.
 
 #### Examples
 
-**fetch**
+**fetch with EventSource-style reading**
 
 ```ts
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-export async function runPipeline(message: string, simplify = false) {
+export async function runPipelineStream(
+  message: string,
+  simplify: "low" | "medium" | "high" = "medium",
+  onChunk: (token: string) => void,
+): Promise<{ result: string; steps: string[] }> {
   const res = await fetch(`${BASE_URL}/api/pipeline/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -191,31 +211,63 @@ export async function runPipeline(message: string, simplify = false) {
     const { error } = await res.json();
     throw new Error(error ?? "Rate limited");
   }
-
-  const body = await res.json();
-
-  if (!res.ok || !body.success) {
-    throw new Error(body.error ?? `Request failed (${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as any).error ?? `Request failed (${res.status})`);
   }
 
-  return body.data as { result: string; steps: string[] };
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalData: { result: string; steps: string[] } | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop()!; // keep incomplete last line
+
+    let currentEvent = "";
+    for (const line of lines) {
+      if (line.startsWith("event:")) {
+        currentEvent = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        const raw = line.slice(5).trim();
+        if (raw === "[DONE]") break;
+
+        const parsed = JSON.parse(raw);
+        if (currentEvent === "result") {
+          finalData = parsed.data;
+        } else if (currentEvent === "error") {
+          throw new Error(parsed.error ?? "Stream error");
+        } else if (parsed.type === "chunk") {
+          onChunk(parsed.content);
+        }
+        currentEvent = "";
+      }
+    }
+  }
+
+  if (!finalData) throw new Error("Stream ended without a result event");
+  return finalData;
 }
 ```
 
-**axios**
+**React hook example**
 
 ```ts
-import axios from "axios";
+const [output, setOutput] = useState("");
+const [steps, setSteps] = useState<string[]>([]);
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000",
-  headers: { "Content-Type": "application/json" },
-});
-
-export async function runPipeline(message: string, simplify = false) {
-  const { data } = await api.post("/api/pipeline/run", { message, simplify });
-  if (!data.success) throw new Error(data.error ?? "Pipeline failed");
-  return data.data as { result: string; steps: string[] };
+async function submit(message: string) {
+  setOutput("");
+  await runPipelineStream(
+    message,
+    "medium",
+    (token) => setOutput((prev) => prev + token),
+  ).then(({ steps }) => setSteps(steps));
 }
 ```
 
@@ -236,12 +288,32 @@ export interface ApiError {
 
 export interface PipelineRunRequest {
   message: string;
-  simplify?: boolean;
+  simplify?: "low" | "medium" | "high";
 }
 
 export interface PipelineRunResponse {
   result: string;
   steps: string[];
+}
+
+// SSE event payloads for /api/pipeline/run
+
+/** Unnamed SSE event — LLM token chunk */
+export interface PipelineChunkEvent {
+  type: "chunk";
+  content: string;
+}
+
+/** Named SSE event: "result" — final pipeline output */
+export interface PipelineResultEvent {
+  success: true;
+  data: PipelineRunResponse;
+}
+
+/** Named SSE event: "error" — mid-stream failure */
+export interface PipelineErrorEvent {
+  success: false;
+  error: string;
 }
 
 export interface HealthResponse {
@@ -278,3 +350,7 @@ Backend default port is **3000** (`PORT` in `backend/.env`).
 ## Changelog
 
 Contact the backend team when new routes are added. This document reflects the routes registered in `backend/src/app.ts` as of the last update.
+
+| Date | Change |
+|------|--------|
+| 2026-05-24 | `POST /api/pipeline/run` migrated from buffered JSON to SSE streaming (`text/event-stream`). LLM tokens now stream as unnamed `chunk` events; final result delivered as named `result` event. TypeScript types updated; `PipelineRunRequest.simplify` corrected to `"low" \| "medium" \| "high"`. |
