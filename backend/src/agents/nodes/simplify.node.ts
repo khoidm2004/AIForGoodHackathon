@@ -54,10 +54,11 @@ export function addAttemptToHistory(
   });
 }
 
+// low = light compression (lenient review); high = strong compression (stricter review)
 const SIMILARITY_THRESHOLDS: Record<string, number> = {
-  low: 0.85,
+  low: 0.15,
   medium: 0.5,
-  high: 0.2,
+  high: 0.75,
 };
 
 export function getSimilarityThreshold(level: string, retryCount: number): number {
