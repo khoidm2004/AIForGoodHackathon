@@ -6,7 +6,7 @@ export const PipelineAnnotation = Annotation.Root({
   simplifiedMessage: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
   reviewPassed: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
   finalOutput: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
-  shouldSimplify: Annotation<boolean>({ reducer: (_, b) => b, default: () => false }),
+  compressionLevel: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
   retryCount: Annotation<number>({ reducer: (a, b) => a + b, default: () => 0 }),
 });
 

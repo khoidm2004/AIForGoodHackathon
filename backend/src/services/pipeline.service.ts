@@ -4,7 +4,7 @@ import { PipelineInput, PipelineOutput } from "../types";
 export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
   const graphResult = await pipelineGraph.invoke({
     originalMessage: input.message,
-    shouldSimplify: input.simplify ?? false,
+    compressionLevel: input.simplify ?? "",
   });
 
   let parsedResult: Record<string, unknown>;
