@@ -25,6 +25,86 @@ class ReviewResult:
     suggestions: list[str]  # Cho retry hint
 
 
+def _as_list(value: Any) -> list[str]:
+    """Normalize LLM/list-like fields into a clean list of strings."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [_as_text(item) for item in value if _as_text(item)]
+    if isinstance(value, tuple | set):
+        return [_as_text(item) for item in value if _as_text(item)]
+    text = _as_text(value)
+    return [text] if text else []
+
+
+def _as_text(value: Any) -> str:
+    """Normalize LLM scalar fields so callers never receive dict/list as reason."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("{") and text.endswith("}"):
+            try:
+                parsed = json.loads(text)
+                return _as_text(
+                    parsed.get("reason")
+                    or parsed.get("explanation")
+                    or parsed.get("message")
+                    or parsed.get("summary")
+                    or parsed
+                )
+            except json.JSONDecodeError:
+                return text
+        return text
+    if isinstance(value, dict):
+        for key in ("reason", "explanation", "message", "summary", "detail"):
+            if key in value:
+                return _as_text(value[key])
+        return "; ".join(f"{key}: {_as_text(val)}" for key, val in value.items() if _as_text(val))
+    if isinstance(value, list):
+        return "; ".join(_as_text(item) for item in value if _as_text(item))
+    return str(value).strip()
+
+
+def _normalize_checks(value: Any) -> dict[str, bool]:
+    """Make the LLM checks payload predictable for downstream retry logic."""
+    if not isinstance(value, dict):
+        return {"llm_checks_valid": False}
+    return {str(key): bool(val) for key, val in value.items()}
+
+
+def _agent2_payload(agent2_output: Any) -> dict[str, Any]:
+    """Accept Agent2Result, top-level dict, or nested Agent 2 compressed output."""
+    if hasattr(agent2_output, "sanitized_prompt"):
+        compressed = getattr(agent2_output, "compressed", {}) or {}
+        return {
+            "sanitized_prompt": getattr(agent2_output, "sanitized_prompt", ""),
+            "algorithm": getattr(agent2_output, "algorithm", "") or compressed.get("algorithm", ""),
+            "compression_level": compressed.get("compression_level", ""),
+            "active_files": compressed.get("active_files", []),
+            "errors": compressed.get("errors", []),
+            "constraints": compressed.get("constraints", []),
+            "open_questions": compressed.get("open_questions", []),
+            "important_symbols": compressed.get("important_symbols", []),
+        }
+
+    if isinstance(agent2_output, dict):
+        compressed = agent2_output.get("compressed", {}) or {}
+        source = compressed if isinstance(compressed, dict) else {}
+        return {
+            "sanitized_prompt": agent2_output.get("sanitized_prompt") or source.get("sanitized_prompt", ""),
+            "algorithm": agent2_output.get("algorithm") or source.get("algorithm", ""),
+            "compression_level": agent2_output.get("compression_level") or source.get("compression_level", ""),
+            "active_files": agent2_output.get("active_files") or source.get("active_files", []),
+            "errors": agent2_output.get("errors") or source.get("errors", []),
+            "constraints": agent2_output.get("constraints") or source.get("constraints", []),
+            "open_questions": agent2_output.get("open_questions") or source.get("open_questions", []),
+            "important_symbols": agent2_output.get("important_symbols") or source.get("important_symbols", []),
+        }
+
+    return {"sanitized_prompt": str(agent2_output or "")}
+
+
 def _quick_checks(original: str, sanitized: str) -> tuple[bool, ReviewResult | None]:
     """Phase 1: Hard deterministic checks."""
     
@@ -80,12 +160,40 @@ def _extract_key_elements(text: str) -> dict[str, list[str]]:
     return elements
 
 
-def _build_review_prompt(original: str, sanitized: str, sim_score: float) -> str:
+def _missing_critical_items(original: str, sanitized: str) -> list[str]:
+    """Find obvious critical items that Agent 2 should not drop."""
+    original_elements = _extract_key_elements(original)
+    sanitized_lower = sanitized.lower()
+    missing: list[str] = []
+
+    for category in ("filenames", "errors", "code_symbols"):
+        for item in original_elements[category]:
+            if item and item.lower() not in sanitized_lower:
+                missing.append(f"{category}:{item}")
+
+    for item in original_elements["constraints"]:
+        # "don't know if I need X" is uncertainty, not a hard instruction constraint.
+        if re.search(r"\bdon't\s+(even\s+)?know\b", item, re.IGNORECASE):
+            continue
+        if item and item.lower() not in sanitized_lower:
+            missing.append(f"constraints:{item}")
+
+    return missing
+
+
+def _build_review_prompt(
+    original: str,
+    sanitized: str,
+    sim_score: float,
+    agent2_meta: dict[str, Any] | None = None,
+) -> str:
     """Build LLM prompt for nuanced review."""
     
     orig_elems = _extract_key_elements(original)
+    agent2_meta = agent2_meta or {}
     
-    return f"""You are a strict context validation agent. Compare ORIGINAL vs SANITIZED.
+    return f"""Compare ORIGINAL vs SANITIZED and return ONE valid JSON object only.
+Do not use markdown. Do not wrap the JSON in code fences. Do not add headings.
 
 ORIGINAL:
 \"\"\"{original[:2000]}\"\"\"
@@ -101,32 +209,41 @@ Extracted from original (for reference):
 - Constraints: {orig_elems['constraints'][:5]}
 - Questions: {orig_elems['questions'][:3]}
 
-VALIDATION RULES:
+Agent 2 metadata:
+- Algorithm: {agent2_meta.get('algorithm', '')}
+- Compression level: {agent2_meta.get('compression_level', '')}
+- Active files: {agent2_meta.get('active_files', [])}
+- Errors: {agent2_meta.get('errors', [])}
+- Constraints: {agent2_meta.get('constraints', [])}
+- Open questions: {agent2_meta.get('open_questions', [])}
+- Important symbols: {agent2_meta.get('important_symbols', [])}
+
+Rules:
 1. INTENT: Does sanitized capture the core request/question? (If original asks about weather, sanitized must mention weather)
 2. FILES: Are all actively referenced filenames preserved?
 3. ERRORS: Are error messages/stack traces kept?
 4. CONSTRAINTS: Are "do not/must/keep" requirements preserved?
 5. TECHNICAL: Are API names, function calls, important symbols intact?
 
-DECISION:
+Decision:
 - APPROVE only if ALL critical elements preserved
 - FAIL if any constraint dropped or core intent changed
 
-Output JSON:
+Return exactly this JSON shape:
 {{
-  "approved": boolean,
-  "confidence": 0.0-1.0,
+  "approved": true,
+  "confidence": 0.8,
   "checks": {{
-    "intent_preserved": boolean,
-    "files_preserved": boolean,
-    "errors_preserved": boolean,
-    "constraints_preserved": boolean,
-    "technical_symbols_intact": boolean
+    "intent_preserved": true,
+    "files_preserved": true,
+    "errors_preserved": true,
+    "constraints_preserved": true,
+    "technical_symbols_intact": true
   }},
   "missing_items": ["specific items Agent 2 dropped"],
   "false_positives": ["items Agent 2 kept that should be dropped"],
-  "reason": "detailed explanation if FAIL",
-  "retry_suggestion": "specific hint for Agent 2: raise SVT threshold / add constraint keyword check / etc."
+  "reason": "one plain-text sentence, not a JSON object",
+  "retry_suggestion": "one plain-text hint for Agent 2, not a JSON object"
 }}"""
 
 
@@ -135,11 +252,11 @@ def _extract_json_from_response(text: str) -> dict:
     body = text.strip()
     # Strip <think>...</think> blocks (qwen3)
     body = re.sub(r"<think>.*?</think>", "", body, flags=re.DOTALL).strip()
-    # Strip markdown code fences
-    if "```" in body:
-        body = re.sub(r"^```(?:json)?\s*", "", body)
-        body = re.sub(r"\s*```$", "", body)
-        body = body.strip()
+
+    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", body, flags=re.DOTALL)
+    if fenced:
+        body = fenced.group(1).strip()
+
     # Find the JSON object
     start = body.find("{")
     end = body.rfind("}")
@@ -148,10 +265,30 @@ def _extract_json_from_response(text: str) -> dict:
     return json.loads(body[start : end + 1])
 
 
+def _fallback_review(original: str, sanitized: str, sim_score: float, reason: str) -> ReviewResult:
+    """Conservative deterministic fallback when the reviewer LLM returns malformed JSON."""
+    missing_items = _missing_critical_items(original, sanitized)
+    approved = sim_score >= 0.72 and not missing_items
+    return ReviewResult(
+        approved=approved,
+        confidence=0.65 if approved else 0.35,
+        similarity_score=sim_score,
+        checks={
+            "llm_parse": False,
+            "semantic_similarity": sim_score >= 0.72,
+            "critical_items_preserved": not missing_items,
+        },
+        missing_items=missing_items,
+        reason=f"LLM reviewer returned malformed JSON; used deterministic fallback. {reason}",
+        suggestions=["Retry LLM review or use a stronger reviewer model"] if not approved else [],
+    )
+
+
 def llm_review(
     original: str, 
     sanitized: str, 
     sim_score: float,
+    agent2_meta: dict[str, Any] | None = None,
     model: str | None = None
 ) -> ReviewResult:
     """Phase 2: LLM reasoning for nuanced validation."""
@@ -165,56 +302,48 @@ def llm_review(
         },
         {
             "role": "user",
-            "content": _build_review_prompt(original, sanitized, sim_score)
+            "content": _build_review_prompt(original, sanitized, sim_score, agent2_meta)
         }
     ]
     
     try:
-        response = chat(messages, model=resolved_model)
+        response = chat(messages, model=resolved_model, temperature=0, max_tokens=450)
         result = _extract_json_from_response(response)
         
         # Validate structure
-        checks = result.get("checks", {})
-        approved = result.get("approved", False)
+        checks = _normalize_checks(result.get("checks", {}))
+        approved = bool(result.get("approved", False))
+        reason = _as_text(result.get("reason", ""))
+        suggestions = _as_list(result.get("retry_suggestion"))
         
         return ReviewResult(
             approved=approved and all(checks.values()),
-            confidence=result.get("confidence", 0.5),
+            confidence=float(result.get("confidence", 0.5)),
             similarity_score=sim_score,
             checks=checks,
-            missing_items=result.get("missing_items", []),
-            reason=result.get("reason", ""),
-            suggestions=[result.get("retry_suggestion", "")]
+            missing_items=_as_list(result.get("missing_items", [])),
+            reason=reason,
+            suggestions=suggestions
         )
         
     except (json.JSONDecodeError, ValueError) as e:
-        return ReviewResult(
-            approved=False,
-            confidence=0.0,
-            similarity_score=sim_score,
-            checks={"llm_parse": False},
-            missing_items=[],
-            reason=f"LLM output not valid JSON: {str(e)[:100]}",
-            suggestions=["Review prompt formatting"]
-        )
+        return _fallback_review(original, sanitized, sim_score, f"Parse error: {str(e)[:100]}")
 
 
 def review_agent3(
     original: str,
     agent2_output: Any,  # Agent2Result or dict
     use_llm: bool = True,
-    min_similarity: float = 0.5
+    min_similarity: float = 0.5,
+    model: str | None = None,
 ) -> ReviewResult:
     """
     Main entry for Agent 3 review.
     
     Flow: Quick checks → (optional) LLM review
     """
-    sanitized = (
-        agent2_output.sanitized_prompt 
-        if hasattr(agent2_output, 'sanitized_prompt')
-        else agent2_output.get("sanitized_prompt", "")
-    )
+    agent2_meta = _agent2_payload(agent2_output)
+    sanitized = _as_text(agent2_meta.get("sanitized_prompt", ""))
     
     # Phase 1: Quick deterministic checks
     quick_pass, quick_fail = _quick_checks(original, sanitized)
@@ -225,7 +354,7 @@ def review_agent3(
     
     # Phase 2: LLM for nuanced checks
     if use_llm:
-        return llm_review(original, sanitized, sim)
+        return llm_review(original, sanitized, sim, agent2_meta=agent2_meta, model=model)
     
     # No LLM mode: rule-based final decision
     return ReviewResult(
