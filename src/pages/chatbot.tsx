@@ -203,7 +203,7 @@ export default function Chatbot() {
                       Low Privacy
                     </div>
                     <div className="text-muted-foreground text-sm mt-1">
-                      AI sees full prompt - higher risk of reverse engineering
+                      Shortly simplify and<br />hide private details
                     </div>
                   </div>
 
@@ -213,8 +213,8 @@ export default function Chatbot() {
                       <Shield className="size-4 text-yellow-600 dark:text-yellow-400" />
                       Medium Privacy
                     </div>
-                    <div className="text-muted-foreground text-sm mt-1">
-                      AI sees moderate input - balanced filtering of sensitive data
+                    <div className="text-muted-foreground text-sm mt-2.5">
+                      Balance simplicity and privacy
                     </div>
                   </div>
 
@@ -224,8 +224,8 @@ export default function Chatbot() {
                       <Lock className="size-4 text-red-600 dark:text-red-400" />
                       High Privacy
                     </div>
-                    <div className="text-muted-foreground text-sm mt-1">
-                      AI sees minimal input - aggressive filtering of critical data
+                    <div className="text-muted-foreground text-sm mt-2.5">
+                      Strictly focus on privacy
                     </div>
                   </div>
                 </div>
