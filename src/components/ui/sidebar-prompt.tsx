@@ -16,13 +16,27 @@ export function AppSidebar({ messages }: AppSidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
-  // Lọc tất cả các tin nhắn assistant có simplifiedMessage (không null)
-  const simplifiedMessages = messages.filter(
-    (msg) => msg.role === "assistant" && msg.simplifiedMessage != null
-  );
+  // Build list of assistant messages with their corresponding user message timestamps
+  const simplifiedMessages = messages
+    .filter((msg) => msg.role === "assistant" && msg.simplifiedMessage != null)
+    .map((assistantMsg) => {
+      // Find the user message that immediately precedes this assistant message
+      const precedingUserMsg = messages
+        .slice(0, messages.indexOf(assistantMsg))
+        .reverse()
+        .find((m) => m.role === "user");
 
-  // Theo dõi sự kiện scroll của container để biết người dùng có đang ở cuối không
-  useEffect(() => {
+      const displayTimestamp = precedingUserMsg
+        ? precedingUserMsg.timestamp
+        : assistantMsg.timestamp; // fallback (should never happen in normal flow)
+
+      return {
+        ...assistantMsg,
+        displayTimestamp,
+      };
+    });
+
+    useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
 
@@ -36,7 +50,6 @@ export function AppSidebar({ messages }: AppSidebarProps) {
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Tự động cuộn xuống cuối khi có tin nhắn mới (nếu người dùng đang ở gần cuối)
   useEffect(() => {
     if (autoScrollRef.current && scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -73,8 +86,12 @@ export function AppSidebar({ messages }: AppSidebarProps) {
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
                         {msg.simplifiedMessage}
                       </p>
+                      {/* ✅ Use the user's timestamp instead of the assistant's */}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {msg.timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        {msg.displayTimestamp.toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </div>

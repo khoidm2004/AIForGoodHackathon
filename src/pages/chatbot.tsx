@@ -271,11 +271,11 @@ export default function Chatbot() {
                             </span>
                             <span className="opacity-50">•</span>
                             <span>
-                              {message.timestamp.toLocaleTimeString("en-GB", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                          {message.timestamp.toLocaleTimeString("en-GB", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
                           </div>
                         )}
                       </div>
