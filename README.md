@@ -14,7 +14,7 @@ This project implements a multi-agent pipeline that preprocesses, simplifies, an
 
 The app mimics a ChatGPT-style experience with configurable privacy levels (low / medium / high). A simplification agent chain produces a minimized prompt and a final answer for the user.
 
-**Benefit:** Less sensitive data in transit and fewer tokens, while stripping noise from messy prompts so the model can answer more accurately.
+**Benefit:** Less sensitive data in transit, while stripping noise from messy prompts so the model can answer more accurately.
 
 ## Tech Stack 💻
 
