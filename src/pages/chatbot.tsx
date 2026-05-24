@@ -269,6 +269,13 @@ export default function Chatbot() {
                               {message.simplify === "medium" && "Medium mode"}
                               {message.simplify === "high" && "High mode"}
                             </span>
+                            <span className="opacity-50">•</span>
+                            <span>
+                              {message.timestamp.toLocaleTimeString("en-GB", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
                           </div>
                         )}
                       </div>
