@@ -59,9 +59,11 @@ flowchart LR
   C --> R[Simplified prompt and final answer]
 ```
 
-| Stage | What happens to user input |
-|-------|----------------------------|
-| Preprocess | Grammar and typos corrected |
-| Simplify | PII redacted, filler removed, intent-focused question |
-| Review | Validates meaning; may re-run simplify |
-| Output | Answer generated from the approved simplified question |
+| Stage      | What happens to user input                             |
+| ---------- | ------------------------------------------------------ |
+| Preprocess | Grammar and typos corrected                            |
+| Simplify   | PII redacted, filler removed, intent-focused question  |
+| Review     | Validates meaning; may re-run simplify                 |
+| Output     | Answer generated from the approved simplified question |
+
+## [Project Presentation ▶️](./document/PrivacyGuard.pptx)
