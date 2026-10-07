@@ -121,3 +121,8 @@ license
 # Keep workspace test-related files
 .vscode-test/
 .vercel
+
+.claude
+artifacts
+findings
+CLAUDE.md
