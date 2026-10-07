@@ -210,7 +210,7 @@ const answer = output.answer;
 
 ## Technical notes
 
-1. **Module-level state** (retryHistory, lastAgent2Result): safe only for single-threaded use. Concurrent requests will race.
+1. **Per-request state** (retryHistory, lastAgent2Result): held in an `AsyncLocalStorage` store (`agents/state/run-context.ts`) created per `runPipeline()` call, so concurrent requests no longer race. Code that calls `pipelineGraph.invoke()` directly, bypassing `runPipeline()`, still shares one fallback context.
 2. **Lexical similarity**: bag-of-words cosine, not semantic embeddings. Low scores when rephrasing long→short are normal.
 3. **LLM simplify receives full preprocessed text**: not output from algorithmic filtering, so the LLM sees full context.
 4. **shouldSimplify**: default `false`. Pipeline service sends `true` when the user wants simplify. `increment-retry` sets it back to `true` on retry.

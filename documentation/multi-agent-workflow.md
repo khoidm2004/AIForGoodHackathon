@@ -72,7 +72,7 @@ Defined in `state/pipeline.state.ts`:
 | `compressionLevel` | `string` | API | `low` / `medium` / `high` |
 | `retryCount` | `number` | `increment-retry` | Retry attempt index |
 
-**Module-level state** (not in LangGraph): `simplify.node.ts` keeps `lastAgent2Result`, `retryHistory`, and attempt numbers so `review` and `output` can access full Agent 2 metadata. This is **single-request oriented**; concurrent pipeline runs on one process can interfere unless you isolate workers.
+**Per-request state** (not in LangGraph): `simplify.node.ts` keeps `lastAgent2Result`, `retryHistory`, and attempt numbers so `review` and `output` can access full Agent 2 metadata. These live in an `AsyncLocalStorage` store (`agents/state/run-context.ts`), created fresh per `runPipeline()` call, so concurrent pipeline runs on one process no longer interfere. Code that calls `pipelineGraph.invoke()` directly, bypassing `runPipeline()`, still shares one process-wide fallback context.
 
 ---
 
@@ -322,7 +322,7 @@ API { success, data: { result: <parsed JSON>, steps: [...] } }
 | Lexical cosine vs embeddings | Fast, no extra model service | Low scores when long text → short question; thresholds tuned heuristically |
 | Algorithm + LLM for Agent 2 | Algorithms strip noise/PII; LLM finds intent | Two passes add latency |
 | LLM reviewer | Catches intent errors regex/similarity miss | Depends on Groq JSON reliability |
-| Module-level retry history | Avoids bloating LangGraph state | Not safe for concurrent requests on one Node process |
+| Per-request retry history via `AsyncLocalStorage` | Avoids bloating LangGraph state, safe for concurrent requests | Direct `pipelineGraph.invoke()` calls bypassing `runPipeline()` still share one fallback context |
 | Retry lowers compression + similarity | Progressive leniency | May still fail if intent is fundamentally lost |
 
 ---
