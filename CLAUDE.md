@@ -1,19 +1,28 @@
-## MCP Tools: code-review-graph
+## Project Context
 
-**ALWAYS use code-review-graph MCP tools BEFORE Grep/Glob/Read.**
+Backend for **PrivacyGuard** (AI For Good Hackathon, Trust & Responsible AI
+track): a Node.js/TypeScript/Express service that runs the user's raw chat
+message through a sequential multi-agent LangGraph pipeline before an LLM
+answers it, to strip sensitive data and noise from the prompt in transit.
 
-| Tool                        | Use when                                 |
-| --------------------------- | ---------------------------------------- |
-| `detect_changes`            | Reviewing code changes                   |
-| `get_review_context`        | Source snippets for review               |
-| `get_impact_radius`         | Blast radius of a change                 |
-| `get_affected_flows`        | Execution paths impacted                 |
-| `query_graph`               | Tracing callers, callees, imports, tests |
-| `semantic_search_nodes`     | Finding functions/classes by name        |
-| `get_architecture_overview` | High-level codebase structure            |
-| `refactor_tool`             | Planning renames, finding dead code      |
+**Pipeline:** `preprocess` (Groq grammar/typo fix) → `simplify` (Agent 2:
+PII masking, then SVT → Top-k → NoisyKNN clause compression, then a Groq
+question rewrite) → `review` (Agent 3: similarity check + optional LLM
+intent check; on failure loops back to `simplify`, up to 3 retries) →
+`output` (assembles the final JSON). Orchestrated with
+`@langchain/langgraph` in `backend/src/agents/graphs/pipeline.graph.ts`;
+shared state in `backend/src/agents/state/pipeline.state.ts`.
 
-**Workflow:** Graph auto-updates on file changes. Use `detect_changes` for review, `get_affected_flows` for impact, `query_graph` pattern="tests_for" for coverage.
+**HTTP surface:** `GET /health`, `GET /warmup`,
+`POST /api/pipeline/run` (body `{ message, simplify?: "low"|"medium"|"high" }`)
+— full request/response contract in `documentation/api-endpoints.md`. This
+is a JSON API only; there is no UI in this repo/branch — a separate
+frontend (on `main`) calls it over `VITE_API_URL`.
+
+**Deep dive:** `documentation/multi-agent-workflow.md` (graph flow, retry
+math, compression-level tuning, design trade-offs) and
+`backend/src/agents/SKILL.md` (shorter maintainer notes — may drift, prefer
+the doc above when they disagree).
 
 ---
 
@@ -29,14 +38,19 @@ When a task is assigned, agents execute in this order:
 
 **Agent files:** `.claude/agents/ai-harness-{planner,coder,reviewer}.md`
 
----
-
-## Project Context
-
-// TODO:
+**Task file:** `TASK.md` at repo root holds the current task for the
+Planner to read. `CHANGELOG_AI.md` at repo root is append-only — only the
+Reviewer writes to it, on approval.
 
 ---
 
 ## Validation
 
-After changes: `npm run lint` + `npx tsc --noEmit`. Use code-review-graph for impact analysis.
+All commands run from `backend/` (the Node project lives there, not at the
+repo root):
+
+- Lint: `npm run lint` (`eslint src --ext .ts`)
+- Type-check: `npx tsc --noEmit`
+- Build: `npm run build`
+
+After changes, run lint and type-check before the Reviewer approves.
