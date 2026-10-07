@@ -1,41 +1,31 @@
 import { PipelineState } from "../state/pipeline.state";
 import { simplifyContext, type Agent2Result, type CompressionLevel } from "../lib/context-simplifier";
 import type { ReviewResult } from "../lib/reviewer";
-
-export interface RetryAttempt {
-  attempt: number;
-  passed: boolean;
-  prompt: string;
-  reason?: string;
-  similarityScore?: number;
-  missingItems?: string[];
-}
-
-// Module-level state for tracking across nodes (single-threaded only)
-let lastAgent2Result: Agent2Result | undefined;
-let currentAttemptNumber = 1;
-const retryHistory: RetryAttempt[] = [];
+import { activeRunContext } from "../state/run-context";
+import type { RetryAttempt } from "../state/run-context";
+export type { RetryAttempt };
 
 /** Last Agent 2 result for the current graph run (used by review node). */
 export function getLastAgent2Result(): Agent2Result | undefined {
-  return lastAgent2Result;
+  return activeRunContext().lastAgent2Result;
 }
 
 /** Get current attempt number for tracking. */
 export function getCurrentAttempt(): number {
-  return currentAttemptNumber;
+  return activeRunContext().currentAttemptNumber;
 }
 
-/** Get full retry history. */
+/** Get full retry history for the current run. */
 export function getRetryHistory(): RetryAttempt[] {
-  return [...retryHistory];
+  return [...activeRunContext().retryHistory];
 }
 
 /** Reset all tracking state (called at start of new pipeline). */
 export function resetPipelineTracking(): void {
-  currentAttemptNumber = 1;
-  retryHistory.length = 0;
-  lastAgent2Result = undefined;
+  const run = activeRunContext();
+  run.currentAttemptNumber = 1;
+  run.retryHistory.length = 0;
+  run.lastAgent2Result = undefined;
 }
 
 /** Add an attempt to history. */
@@ -44,7 +34,7 @@ export function addAttemptToHistory(
   prompt: string,
   reviewResult: ReviewResult,
 ): void {
-  retryHistory.push({
+  activeRunContext().retryHistory.push({
     attempt,
     passed: reviewResult.approved,
     prompt,
@@ -88,15 +78,17 @@ export function getSimilarityThreshold(
 }
 
 export async function simplifyNode(state: PipelineState): Promise<Partial<PipelineState>> {
+  const run = activeRunContext();
+
   if (state.retryCount === 0) {
     resetPipelineTracking();
   }
 
-  currentAttemptNumber = state.retryCount + 1;
+  run.currentAttemptNumber = state.retryCount + 1;
 
   // No compression level set → skip simplification
   if (!state.compressionLevel) {
-    lastAgent2Result = undefined;
+    run.lastAgent2Result = undefined;
     return { simplifiedMessage: state.preprocessedMessage };
   }
 
@@ -111,7 +103,7 @@ export async function simplifyNode(state: PipelineState): Promise<Partial<Pipeli
 
   const threshold = getSimilarityThreshold(state.compressionLevel, state.retryCount);
   const result = await simplifyContext(state.preprocessedMessage, compressionLevel, threshold);
-  lastAgent2Result = result;
+  run.lastAgent2Result = result;
 
   return { simplifiedMessage: result.sanitizedPrompt || state.preprocessedMessage };
 }

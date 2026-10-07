@@ -5,9 +5,23 @@ export interface PipelineInput {
   simplify?: SimplifyLevel;
 }
 
+export type TraceStage = "preprocess" | "simplify" | "review" | "output";
+
+/** One stage of a single pipeline run, for the per-agent trace in the API response. */
+export interface TraceEntry {
+  stage: TraceStage;
+  text: string;
+  attempt?: number;
+  passed?: boolean;
+  similarityScore?: number;
+  reason?: string;
+  missingItems?: string[];
+}
+
 export interface PipelineOutput {
   result: Record<string, unknown>;
   steps: string[];
+  trace: TraceEntry[];
 }
 
 export interface PipelineStateData {

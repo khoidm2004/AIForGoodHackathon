@@ -145,12 +145,35 @@ Runs the text pipeline: preprocess → simplify → review (with retries) → ou
   "data": {
     "result": {
       "status": "approved",
-      "attempt": 1,
+      "attempt": 2,
       "simplifiedMessage": "...",
       "answer": "...",
       "review": { }
     },
-    "steps": ["preprocess", "simplify", "review", "output"]
+    "steps": ["preprocess", "simplify", "review", "output"],
+    "trace": [
+      { "stage": "preprocess", "text": "explain quantum computing in simple terms" },
+      { "stage": "simplify", "attempt": 1, "text": "What is quantum computing?" },
+      {
+        "stage": "review",
+        "attempt": 1,
+        "text": "What is quantum computing?",
+        "passed": false,
+        "similarityScore": 0.31,
+        "reason": "Key decision not preserved",
+        "missingItems": ["simple terms"]
+      },
+      { "stage": "simplify", "attempt": 2, "text": "Explain quantum computing simply." },
+      {
+        "stage": "review",
+        "attempt": 2,
+        "text": "Explain quantum computing simply.",
+        "passed": true,
+        "similarityScore": 0.62,
+        "reason": "Similarity 0.62 well above threshold 0.5 — skipped LLM review"
+      },
+      { "stage": "output", "text": "Quantum computing uses qubits..." }
+    ]
   }
 }
 ```
@@ -159,15 +182,30 @@ Runs the text pipeline: preprocess → simplify → review (with retries) → ou
 |-------|------|-------------|
 | `data.result` | `object` | Parsed pipeline output (`status`, `attempt`, `simplifiedMessage`, `answer`, `review`, and optional `previousRejectedSimplifiedMessage`). |
 | `data.steps` | `string[]` | Pipeline stages that were part of this run. Useful for debugging or UI step indicators. |
+| `data.trace` | `TraceEntry[]` | Per-agent trace of this run: one `preprocess` entry, then one `simplify` + `review` pair per attempt (including rejected attempts), then one `output` entry. See the `TraceEntry` fields below. |
+
+#### `TraceEntry` fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stage` | `"preprocess"` \| `"simplify"` \| `"review"` \| `"output"` | Which pipeline stage produced this entry. |
+| `text` | `string` | The text produced/considered at this stage. For `review`, this duplicates the corresponding `simplify` attempt's text on purpose — the review step evaluates that same text, it doesn't produce new text. |
+| `attempt` | `number` (optional) | Present on `simplify`/`review` entries. **Not a unique identifier** — do not dedupe or group trace entries by `attempt` alone; use array order instead. |
+| `passed` | `boolean` (optional) | Present on `review` entries; whether that attempt was approved. |
+| `similarityScore` | `number` (optional) | Present on `review` entries when a similarity score was computed. |
+| `reason` | `string` (optional) | Present on `review` entries; human-readable explanation of the pass/fail decision. |
+| `missingItems` | `string[]` (optional) | Present on `review` entries when the review flagged specific missing content. |
+
+Because `trace` repeats text across stages, responses are roughly **3-5x larger** than before this field was added. Frontends should render the trace lazily or behind a collapsed/expandable section rather than always expanding it.
 
 **Pipeline behavior (for UI copy / loading states)**
 
 1. **preprocess** — Fixes typos and grammar.
 2. **simplify** — Redacts PII and compresses text; aggressiveness follows `simplify` (`low` / `medium` / `high`).
 3. **review** — Validates output; on failure, simplify may retry up to 3 times.
-4. **output** — Only runs when review passes; builds the final `result` object.
+4. **output** — Always runs, including when every retry failed; builds the final `result` object.
 
-If review fails after retries, the graph may end without an output step; `result` may still be set from earlier state. Treat empty or unexpected `result` as a soft failure and show a friendly message in the UI.
+If review fails after every retry, `result.status` is `"failed"`, `result.answer` is `null`, and every `review` entry in `data.trace` has `passed: false`. Treat that `"failed"` status as a soft failure and show a friendly message in the UI.
 
 #### Error responses
 
@@ -207,7 +245,7 @@ export async function runPipeline(
     throw new Error(body.error ?? `Request failed (${res.status})`);
   }
 
-  return body.data as { result: Record<string, unknown>; steps: string[] };
+  return body.data as { result: Record<string, unknown>; steps: string[]; trace: TraceEntry[] };
 }
 ```
 
@@ -227,7 +265,7 @@ export async function runPipeline(
 ) {
   const { data } = await api.post("/api/pipeline/run", { message, simplify });
   if (!data.success) throw new Error(data.error ?? "Pipeline failed");
-  return data.data as { result: Record<string, unknown>; steps: string[] };
+  return data.data as { result: Record<string, unknown>; steps: string[]; trace: TraceEntry[] };
 }
 ```
 
@@ -253,9 +291,22 @@ export interface PipelineRunRequest {
   simplify?: SimplifyLevel;
 }
 
+export type TraceStage = "preprocess" | "simplify" | "review" | "output";
+
+export interface TraceEntry {
+  stage: TraceStage;
+  text: string;
+  attempt?: number;
+  passed?: boolean;
+  similarityScore?: number;
+  reason?: string;
+  missingItems?: string[];
+}
+
 export interface PipelineRunResponse {
   result: Record<string, unknown>;
   steps: string[];
+  trace: TraceEntry[];
 }
 
 export interface HealthResponse {
