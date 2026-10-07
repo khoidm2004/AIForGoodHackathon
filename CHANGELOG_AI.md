@@ -1,3 +1,8 @@
+[2026-10-07] - Migrate Agent 2/Agent 3 LLM calls from OpenRouter to Groq
+What changed: Added a second export groqJsonClient (temperature 0) to backend/src/services/groq.client.ts, leaving the existing groqClient untouched. Rewrote backend/src/agents/lib/llm-chat.ts to call groqJsonClient.invoke() directly instead of openRouterChat. Updated backend/src/agents/lib/reviewer.ts to import chat from ./llm-chat and call it instead of openRouterChat. Deleted backend/src/services/openrouter.client.ts.
+Why: Consolidate all LLM traffic onto a single Groq provider/model (openai/gpt-oss-120b) instead of maintaining a separate OpenRouter integration for Agents 2 and 3.
+Impact: Agent 2 and Agent 3 now share the same Groq client and model as the rest of the pipeline, at temperature 0 for deterministic JSON output. Agent 2 trades its dedicated OpenRouter reasoning model for one shared provider. context-simplifier.ts, pipeline.graph.ts, pipeline.state.ts, and preprocess.node.ts/output.node.ts are unchanged. TypeScript compiles with zero errors.
+
 [2026-05-23] - Remove unused Qdrant vector layer
 What changed: Deleted backend/src/vector/qdrant.client.ts and qdrant.service.ts. Removed QDRANT_URL and QDRANT_API_KEY from config env schema. Removed @qdrant/js-client-rest from package.json and refreshed package-lock.json.
 Why: Vector search was not used by the pipeline or API; dropping it simplifies config and dependencies.

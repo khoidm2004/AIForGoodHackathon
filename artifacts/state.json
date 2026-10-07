@@ -1,0 +1,82 @@
+{
+  "task": "backend/src/services/openrouter.client.ts is outdated and must be removed. Switch Agent 2 (simplify) and Agent 3 (review) from OpenRouter to the Groq provider, matching how backend/src/services/groq.client.ts already powers the preprocess and output nodes.",
+  "difficulty": "medium",
+  "status": "passed",
+  "current_agent": "none",
+  "plan": {
+    "resolved_decisions": {
+      "Q1_temperature": "Add a second client groqJsonClient (temperature 0) in groq.client.ts, used only by llm-chat.ts. Original groqClient (0.7 default) untouched so preprocess/output are provably unaffected.",
+      "Q2_verification": "No GROQ_API_KEY or test runner available. Acceptance is static only: tsc --noEmit, grep for 'openrouter' returns nothing, diff scoped to the 4 named files, prettier --check on the two newly-edited files only. No live pipeline run.",
+      "Q3_model_choice": "One model id for everything: openai/gpt-oss-120b. Only axis of difference is temperature via groqJsonClient, not model choice. Disclose in changelog that Agent 2 loses its dedicated OpenRouter reasoning model.",
+      "Q4_reviewer_route": "reviewer.ts calls through llm-chat.ts's chat(), not a direct groqClient/groqJsonClient import."
+    },
+    "files_to_change": [
+      "backend/src/services/groq.client.ts - add groqJsonClient export (temperature 0), groqClient byte-identical",
+      "backend/src/agents/lib/llm-chat.ts - rewrite chat() to call groqJsonClient.invoke(messages) directly, no SystemMessage/HumanMessage wrapping, no try/catch",
+      "backend/src/agents/lib/reviewer.ts - line 5 import chat from ./llm-chat instead of openRouterChat; line 337 call chat(messages) instead of openRouterChat(\"agent3\", messages)",
+      "backend/src/services/openrouter.client.ts - delete entirely after steps above"
+    ],
+    "must_not_change": [
+      "pipeline.graph.ts, pipeline.state.ts, increment-retry.node.ts",
+      "similarity.ts, patterns.ts",
+      "context-simplifier.ts (no edits at all, including its pre-existing bugs)",
+      "reviewer.ts's buildReviewPrompt and its try/catch wrapper at lines 336-356",
+      "preprocess.node.ts, output.node.ts (keep using original groqClient at 0.7)",
+      "package.json/package-lock.json (no OpenRouter dependency exists)",
+      "SKILL.md, documentation/multi-agent-workflow.md",
+      "no prettier --write anywhere; no try/catch added around the new Groq calls"
+    ],
+    "optional_step": "Append one CHANGELOG_AI.md entry documenting the swap and the temperature/model decisions - optional, must not block or fail the task if skipped",
+    "how_to_test": [
+      "cd backend && npx tsc --noEmit must exit 0 with no output",
+      "grep -rni openrouter . --include=*.ts --include=*.json --include=*.md | grep -v node_modules must return zero lines",
+      "openrouter.client.ts must no longer exist on disk",
+      "git diff --stat confined to groq.client.ts, llm-chat.ts, reviewer.ts, deletion of openrouter.client.ts, optionally CHANGELOG_AI.md",
+      "npx prettier --check src/agents/lib/llm-chat.ts src/services/groq.client.ts must pass (these two were clean on HEAD)",
+      "npm run format:check expected to still fail on the same 7 pre-existing files - not a regression",
+      "npm run lint expected to fail with 'eslint: command not found' - environmental, not a fail condition",
+      "no live Groq call possible (no GROQ_API_KEY) - do not attempt to run the server"
+    ]
+  },
+  "attempt": 1,
+  "consecutive_failures": 0,
+  "bugs": [],
+  "files_changed": [
+    "backend/src/services/groq.client.ts",
+    "backend/src/agents/lib/llm-chat.ts",
+    "backend/src/agents/lib/reviewer.ts",
+    "backend/src/services/openrouter.client.ts (deleted)",
+    "CHANGELOG_AI.md"
+  ],
+  "history": [
+    {
+      "time": "2026-10-07T17:46:00Z",
+      "agent": "analyzer",
+      "attempt": 1,
+      "result": "done",
+      "summary": "14 established facts, 10 risks, 4 open questions. Highest-impact: swap silently changes temperature from pinned 0 (OpenRouter) to @langchain/groq's default 0.7, making both migrated call sites' strict-JSON contracts stochastic with silent failure paths. No OpenRouter-only dependency exists (package.json needs no edit). npm run lint is unrunnable (eslint missing); npx tsc --noEmit is the real gate."
+    },
+    {
+      "time": "2026-10-07T17:58:00Z",
+      "agent": "planner",
+      "attempt": 1,
+      "result": "done",
+      "summary": "5 ordered steps across 4 files (groq.client.ts, llm-chat.ts, reviewer.ts, delete openrouter.client.ts) plus one optional changelog entry. All 4 open questions resolved explicitly, not left to the coder. Test strategy scoped to static checks only (no API key available)."
+    },
+    {
+      "time": "2026-10-07T18:05:00Z",
+      "agent": "coder",
+      "attempt": 1,
+      "result": "done",
+      "summary": "Implemented all 4 steps exactly per plan plus the optional changelog entry. tsc --noEmit exit 0, grep for openrouter empty, prettier --check passes on the 2 newly-touched files. No edits outside the planned file list."
+    },
+    {
+      "time": "2026-10-07T18:12:00Z",
+      "agent": "tester",
+      "attempt": 1,
+      "result": "PASS",
+      "summary": "All static checks pass: tsc clean, grep for openrouter empty, prettier clean on the 2 touched files, diff scope confined to plan, no try/catch swallowing errors in llm-chat.ts, reviewer.ts's fallback wrapper intact. lint/format:check failures match pre-existing baseline, no regression. Dev-diary entry appended."
+    }
+  ],
+  "updated_at": "2026-10-07T18:12:00Z"
+}
