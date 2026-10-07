@@ -5,6 +5,7 @@ import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
 import { useTheme } from "../components/ui/theme";
 import { runPipeline } from "../services/api";
+import type { TraceEntry } from "../services/api";
 import { useSidebar } from "../components/ui/sidebar";
 import { ChevronRight } from "lucide-react";
 
@@ -13,7 +14,8 @@ export interface Message {
   role: "user" | "assistant";
   timestamp: Date;
   simplify?: "low" | "medium" | "high";
-  simplifiedMessage?: string | null;  
+  simplifiedMessage?: string | null;
+  trace?: TraceEntry[];
 }
 
 function MobileOpenButton() {
@@ -107,7 +109,8 @@ export default function Chatbot() {
           content: "",
           role: "assistant",
           timestamp: new Date(),
-          simplifiedMessage: data.result.simplifiedMessage ?? null,  
+          simplifiedMessage: data.result.simplifiedMessage ?? null,
+          trace: data.trace,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         await simulateTyping(assistantAnswer);
@@ -117,7 +120,8 @@ export default function Chatbot() {
           content: "",
           role: "assistant",
           timestamp: new Date(),
-          simplifiedMessage: null,
+          simplifiedMessage: data.result?.simplifiedMessage ?? null,
+          trace: data.trace,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         await simulateTyping(errorMsg);
