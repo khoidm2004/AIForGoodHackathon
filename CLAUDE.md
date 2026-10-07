@@ -26,31 +26,7 @@ the doc above when they disagree).
 
 ---
 
-## AI Harness Multi-Agent Workflow
-
-When a task is assigned, agents execute in this order:
-
-1. **Planner** — Reads task, breaks into numbered subtasks (≤10 lines)
-2. **Coder** — Implements only what Planner specified, minimal code, flags blockers
-3. **Reviewer** — Reviews changes, blocks and returns to Coder if 🔴 issues found, appends entry to `CHANGELOG_AI.md` on approval, does NOT rewrite code
-
-**Rules:** Short responses, no refactoring outside scope, no architectural changes unless asked, each agent does only its defined role.
-
-**Agent files:** `.claude/agents/ai-harness-{planner,coder,reviewer}.md`
-
-**Task file:** `TASK.md` at repo root holds the current task for the
-Planner to read. `CHANGELOG_AI.md` at repo root is append-only — only the
-Reviewer writes to it, on approval.
-
----
-
 ## Multi-agent workflow (`/code-task`)
-
-A second, heavier loop for larger or uncertain backend changes — use this
-instead of the AI Harness loop above when a task needs real investigation
-before a plan can be trusted. Uses its own task file
-(`Artifacts/TASK.md`, distinct from the root `TASK.md` above) and its own
-agents, so the two loops don't share state.
 
 - Write a task in `Artifacts/TASK.md` with a difficulty (`easy` | `medium` |
   `hard`) and run `/code-task`.
