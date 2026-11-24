@@ -35,6 +35,8 @@ The app mimics a ChatGPT-style experience with configurable privacy levels (low 
 
 ![Project architecture diagram](./public/image.png)
 
+Detailed backend design can be found here: https://khoidm2004.github.io/AIForGoodHackathon/
+
 ### User input flow
 
 1. **Client** — The user sends a prompt and chooses a privacy level (**low** / **medium** / **high**), which sets how aggressively the pipeline compresses and redacts input.
