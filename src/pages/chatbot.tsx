@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, Shield, Lock, Sun, Moon, Info } from "lucide-react";
+import { Send, Sparkles, Shield, Lock, Sun, Moon, Info, PanelLeft, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SidebarProvider } from "../components/ui/sidebar";
 import { AppSidebar } from "../components/ui/sidebar-prompt";
@@ -8,6 +8,7 @@ import { runPipeline } from "../services/api";
 import type { TraceEntry } from "../services/api";
 import { useSidebar } from "../components/ui/sidebar";
 import { ChevronRight } from "lucide-react";
+import { InstructionModal, ONBOARDING_STORAGE_KEY } from "../components/ui/instruction-modal";
 
 export interface Message {
   content: string;
@@ -33,12 +34,35 @@ function MobileOpenButton() {
   );
 }
 
+function SidebarToggleButton() {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="p-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
+      aria-label="Toggle sidebar"
+      title="Toggle sidebar (Ctrl/⌘ + B)"
+    >
+      <PanelLeft className="size-5 text-foreground" />
+    </button>
+  );
+}
+
 export default function Chatbot() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [simplify, setSimplify] = useState<"low" | "medium" | "high">("medium");
+  const [showInstructions, setShowInstructions] = useState(
+    () => !localStorage.getItem(ONBOARDING_STORAGE_KEY),
+  );
   const { darkMode, toggleTheme } = useTheme();
+
+  const dismissInstructions = () => {
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+    setShowInstructions(false);
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -150,6 +174,7 @@ export default function Chatbot() {
 
   return (
     <SidebarProvider defaultOpen={false}>
+      <InstructionModal open={showInstructions} onDismiss={dismissInstructions} />
       <div className="flex h-screen w-full bg-background">
         <AppSidebar messages={messages} />
         <MobileOpenButton />
@@ -166,6 +191,15 @@ export default function Chatbot() {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowInstructions(true)}
+                className="p-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
+                aria-label="How it works"
+                title="How it works"
+              >
+                <HelpCircle className="size-5 text-foreground" />
+              </button>
+              <SidebarToggleButton />
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-full bg-secondary/50 hover:bg-secondary transition-colors"
